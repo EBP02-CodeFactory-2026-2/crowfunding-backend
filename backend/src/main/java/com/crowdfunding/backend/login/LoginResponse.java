@@ -1,4 +1,4 @@
-package dto.login;
+package com.crowdfunding.backend.login;
 
 public record LoginResponse(
         String accessToken,

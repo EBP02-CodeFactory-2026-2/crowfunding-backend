@@ -1,4 +1,4 @@
-package dto.login;
+package com.crowdfunding.backend.login;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

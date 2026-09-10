@@ -1,4 +1,4 @@
-package persistence;
+package com.crowdfunding.backend.persistence;
 
 import java.util.Optional;
 
