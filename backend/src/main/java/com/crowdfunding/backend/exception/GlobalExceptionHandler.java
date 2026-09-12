@@ -97,4 +97,18 @@ public class GlobalExceptionHandler {
 
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
         }
+
+        @ExceptionHandler(DuplicatedEmailException.class)
+        public ResponseEntity<ErrorResponse> handleDuplicatedEmailException(HttpServletRequest request,
+                        DuplicatedEmailException ex) {
+                ErrorResponse response = new ErrorResponse(
+                                Instant.now().toString(),
+                                HttpStatus.CONFLICT.value(),
+                                HttpStatus.CONFLICT.getReasonPhrase(),
+                                ex.getMessage(),
+                                request.getRequestURI(),
+                                null);
+
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+        }
 }

@@ -5,7 +5,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.crowdfunding.backend.login.LoginRequest;
 import com.crowdfunding.backend.login.LoginResponse;
+import com.crowdfunding.backend.register.RegisterRequest;
+import com.crowdfunding.backend.register.RegisterResponse;
 import com.crowdfunding.backend.services.AuthService;
+import com.crowdfunding.backend.services.RegisterService;
 
 import jakarta.validation.Valid;
 
@@ -18,9 +21,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 public class AuthController {
 
     private final AuthService authService;
+    private final RegisterService registerService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, RegisterService registerService) {
         this.authService = authService;
+        this.registerService = registerService;
     }
 
     @PostMapping("/login")
@@ -29,4 +34,9 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+        RegisterResponse response = registerService.register(request);
+        return ResponseEntity.ok(response);
+    }
 }
