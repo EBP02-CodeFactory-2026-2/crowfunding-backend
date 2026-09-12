@@ -38,7 +38,7 @@ public class RegisterService {
         Optional<User> result = repository.findByEmail(request.email());
 
         if (result.isPresent()) {
-            throw new DuplicatedEmailException("Correo ya existente");
+            throw new DuplicatedEmailException("Este correo ya está registrado");
         }
 
         User user = new User();
