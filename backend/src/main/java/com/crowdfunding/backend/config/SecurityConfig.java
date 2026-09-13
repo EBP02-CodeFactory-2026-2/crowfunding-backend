@@ -43,9 +43,9 @@ public class SecurityConfig {
                 // Configurar autorización a endpoints
                 .authorizeHttpRequests(auth -> auth
                         // Endpoints públicos
-                        .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login")
-                        .permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/projects","/api/v1/projects/**").permitAll()
+                        .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/projects", "/api/v1/projects/**").permitAll()
                         // Los demás endpoints requieren autenticación
                         .anyRequest().authenticated())
                 // Sesión stateless necesaria para JWT
