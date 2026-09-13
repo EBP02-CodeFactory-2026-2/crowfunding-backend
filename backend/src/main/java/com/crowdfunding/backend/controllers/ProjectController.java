@@ -25,8 +25,6 @@ public class ProjectController {
         this.projectService = projectService;
     }
 
-    // --- LECTURA (HU Mafe) ---
-
     // GET /api/projects - Obtener todos los proyectos
     @GetMapping
     public ResponseEntity<List<Project>> getAllProjects() {
@@ -42,7 +40,6 @@ public class ProjectController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // --- ESCRITURA (HU Dan) ---
 
     // POST /api/projects - Crear un nuevo proyecto
     @PostMapping
