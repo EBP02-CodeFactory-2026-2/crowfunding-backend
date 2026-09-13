@@ -1,12 +1,12 @@
 -- SPRINT 1: DATOS SEMILLA PARA PRUEBAS
 -- Contraseña global para pruebas: Password123
--- Hash BCrypt asociado: $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+-- Hash BCrypt asociado: $2a$10$5Auj9daTFegCajpd4u7Za.kIlWRn.9alG99rxx2cSLO8LtJQcl8S6
 
 -- 1. Poblar Usuarios
 INSERT INTO users (full_name, email, password_hash) VALUES
-('Camila Torres', 'camila@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
-('Ana Gómez', 'ana.gomez@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
-('Carlos Dev', 'carlos@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy');
+('Camila Torres', 'camila@example.com', '$2a$10$5Auj9daTFegCajpd4u7Za.kIlWRn.9alG99rxx2cSLO8LtJQcl8S6'),
+('Ana Gómez', 'ana.gomez@example.com', '$2a$10$5Auj9daTFegCajpd4u7Za.kIlWRn.9alG99rxx2cSLO8LtJQcl8S6'),
+('Carlos Dev', 'carlos@example.com', '$2a$10$5Auj9daTFegCajpd4u7Za.kIlWRn.9alG99rxx2cSLO8LtJQcl8S6');
 
 -- 2. Poblar Proyectos (Asumiendo IDs 1 y 2 para los usuarios creados arriba)
 INSERT INTO projects (user_id, title, description, image_url, funding_goal, current_amount, deadline, status) VALUES
