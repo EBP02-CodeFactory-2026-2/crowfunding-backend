@@ -1,7 +1,6 @@
 package com.crowdfunding.backend.project;
 
 import com.crowdfunding.backend.entity.Project;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,8 +14,12 @@ public record ProjectDetailResponse(
     String imageUrl,
     LocalDateTime deadline,
     String status,
+    CreatorDto creator,
     LocalDateTime createdAt
 ) {
+    // Record anidado para el objeto creador
+    public record CreatorDto(Long id, String fullName) {}
+
     public static ProjectDetailResponse fromEntity(Project project) {
         return new ProjectDetailResponse(
             project.getId(),
@@ -26,7 +29,9 @@ public record ProjectDetailResponse(
             project.getCurrentAmount(),
             project.getImageUrl(),
             project.getDeadline(),
-            project.getStatus() != null ? project.getStatus().toString() : null,
+            project.getStatus(),
+            project.getCreator() != null ? 
+                new CreatorDto(project.getCreator().getId(), project.getCreator().getFullName()) : null,
             project.getCreatedAt()
         );
     }
