@@ -16,8 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/projects")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/v1/projects")
 public class ProjectController {
 
     private final ProjectRepository projectRepository;

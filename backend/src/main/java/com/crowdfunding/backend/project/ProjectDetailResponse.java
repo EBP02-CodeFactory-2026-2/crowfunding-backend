@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record ProjectResponse(
+public record ProjectDetailResponse(
     UUID id,
     String title,
     String description,
@@ -17,8 +17,8 @@ public record ProjectResponse(
     String status,
     LocalDateTime createdAt
 ) {
-    public static ProjectResponse fromEntity(Project project) {
-        return new ProjectResponse(
+    public static ProjectDetailResponse fromEntity(Project project) {
+        return new ProjectDetailResponse(
             project.getId(),
             project.getTitle(),
             project.getDescription(),
