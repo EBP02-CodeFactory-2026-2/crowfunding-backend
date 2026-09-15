@@ -3,7 +3,11 @@ package com.crowdfunding.backend.controllers;
 import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.persistence.ProjectRepository;
 import com.crowdfunding.backend.project.CreateProjectRequest;
+import com.crowdfunding.backend.project.ProjectResponse;
 import com.crowdfunding.backend.services.ProjectService;
+
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -41,10 +45,10 @@ public class ProjectController {
     }
 
 
-    // POST /api/projects - Crear un nuevo proyecto
+// POST /api/projects - Crear un nuevo proyecto
     @PostMapping
-    public ResponseEntity<Project> createProject(@RequestBody CreateProjectRequest request) {
-        Project createdProject = projectService.createProject(request);
+    public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody CreateProjectRequest request) {
+        ProjectResponse createdProject = projectService.createProject(request);
         return new ResponseEntity<>(createdProject, HttpStatus.CREATED);
     }
 }
