@@ -1,0 +1,186 @@
+{
+  "info": {
+    "_postman_id": "cc8cbb19-5c66-46ca-855a-4f1adf5f2450",
+    "name": "Crowdfunding API - Sprint 1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "50946404",
+    "_collection_link": "https://go.postman.co/collection/50946404-cc8cbb19-5c66-46ca-855a-4f1adf5f2450?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"title\": \"Teclado Mecánico Custom\",\r\n  \"description\": \"Proyecto para fabricar teclados ergonómicos.\",\r\n  \"imageUrl\": \"https://placehold.co/600x400/png\",\r\n  \"fundingGoal\": 1500.00,\r\n  \"deadline\": \"2026-12-31T23:59:59\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/projects",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ListAll",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detail",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "39eb5142-8a71-4f94-9333-4a8d32292471"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"fullName\": \"Nuevo Usuario\",\r\n  \"email\": \"nuevo@example.com\",\r\n  \"password\": \"Password123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {\n    var jsonData = pm.response.json();\n    pm.collectionVariables.set(\"jwt_token\", jsonData.accessToken);\n    console.log(\"¡Token guardado exitosamente!\");\n}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"camila@example.com\",\r\n  \"password\": \"Password123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": ""
+    },
+    {
+      "key": "jwt_token",
+      "value": ""
+    }
+  ]
+}
