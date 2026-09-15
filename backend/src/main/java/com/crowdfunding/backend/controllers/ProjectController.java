@@ -1,8 +1,9 @@
 package com.crowdfunding.backend.controllers;
 
-import com.crowdfunding.backend.entity.Project;
-import com.crowdfunding.backend.persistence.ProjectRepository;
+
 import com.crowdfunding.backend.project.CreateProjectRequest;
+import com.crowdfunding.backend.project.ProjectDetailResponse;
+import com.crowdfunding.backend.project.ProjectListResponse;
 import com.crowdfunding.backend.project.ProjectResponse;
 import com.crowdfunding.backend.services.ProjectService;
 
@@ -19,28 +20,25 @@ import java.util.UUID;
 @RequestMapping("/api/v1/projects")
 public class ProjectController {
 
-    private final ProjectRepository projectRepository;
     private final ProjectService projectService;
 
-    // Inyección de dependencias para lectura (Repository) y escritura (Service)
-    public ProjectController(ProjectRepository projectRepository, ProjectService projectService) {
-        this.projectRepository = projectRepository;
+    // Inyección de dependencias para lectura y escritura (Service)
+    public ProjectController(ProjectService projectService) {
         this.projectService = projectService;
     }
 
     // GET /api/projects - Obtener todos los proyectos
     @GetMapping
-    public ResponseEntity<List<Project>> getAllProjects() {
-        List<Project> projects = projectRepository.findAll();
+    public ResponseEntity<List<ProjectListResponse>> getAllProjects() {
+        List<ProjectListResponse> projects = projectService.getAllProjects();
         return ResponseEntity.ok(projects);
     }
 
     // GET /api/projects/{id} - Obtener un proyecto específico por ID
     @GetMapping("/{id}")
-    public ResponseEntity<Project> getProjectById(@PathVariable UUID id) {
-        return projectRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ProjectDetailResponse> getProjectById(@PathVariable UUID id) {
+        ProjectDetailResponse project = projectService.getProjectById(id);
+        return ResponseEntity.ok(project);
     }
 
 
