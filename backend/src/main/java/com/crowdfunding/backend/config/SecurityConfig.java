@@ -40,6 +40,8 @@ public class SecurityConfig {
                 // Desactivar CSFR, no es necesario para JWT stateless
                 .csrf(csrf -> csrf.disable())
 
+                // Habilitar el filtro de CORS de Spring Security
+                .cors(cors -> cors.configure(http))
                 // Configurar autorización a endpoints
                 .authorizeHttpRequests(auth -> auth
                         // Endpoints públicos
