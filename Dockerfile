@@ -2,14 +2,14 @@
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
 
-# Descarga dependencias aprovechando la caché de Docker
-COPY .mvn/ .mvn
-COPY mvnw pom.xml ./
+# Descarga dependencias buscando dentro de la carpeta backend
+COPY backend/.mvn/ .mvn
+COPY backend/mvnw backend/pom.xml ./
 RUN chmod +x ./mvnw
 RUN ./mvnw dependency:go-offline -B
 
-# Copia el código fuente y compila
-COPY src ./src
+# Copia el código fuente desde backend y compila
+COPY backend/src ./src
 RUN ./mvnw clean package -DskipTests
 
 # 2. Etapa de ejecución: USAR JRE 21 (Para producción)
