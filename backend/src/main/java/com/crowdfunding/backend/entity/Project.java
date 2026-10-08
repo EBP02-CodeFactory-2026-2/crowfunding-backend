@@ -44,6 +44,9 @@ public class Project {
     @Column(nullable = false)
     private LocalDateTime deadline;
 
+    @Column(name = "risk_score")
+    private Integer riskScore;
+
     @Column(nullable = false)
     private String status = "DRAFT"; // DRAFT, ACTIVE, FUNDED, FAILED
 
