@@ -111,4 +111,38 @@ public class GlobalExceptionHandler {
 
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
         }
+
+        // Manejo de montos inválidos (400 Bad Request)
+        @ExceptionHandler(InvalidContributionAmountException.class)
+        public ResponseEntity<ErrorResponse> handleInvalidContribution(
+                        InvalidContributionAmountException ex, HttpServletRequest request) {
+                return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request.getRequestURI());
+        }
+
+        // Manejo de proyectos bloqueados o inactivos (403 Forbidden o 409 Conflict)
+        @ExceptionHandler(ProjectLockedException.class)
+        public ResponseEntity<ErrorResponse> handleProjectLocked(
+                        ProjectLockedException ex, HttpServletRequest request) {
+                return buildResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request.getRequestURI());
+        }
+
+        // Manejo de Ataques de Repetición (409 Conflict)
+        @ExceptionHandler(ReplayAttackException.class)
+        public ResponseEntity<ErrorResponse> handleReplayAttack(
+                        ReplayAttackException ex, HttpServletRequest request) {
+                return buildResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request.getRequestURI());
+        }
+
+        // Método auxiliar para no repetir código
+        private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String error, String message,
+                        String path) {
+                ErrorResponse response = new ErrorResponse(
+                                Instant.now().toString(),
+                                status.value(),
+                                error,
+                                message,
+                                path,
+                                null);
+                return ResponseEntity.status(status).body(response);
+        }
 }
