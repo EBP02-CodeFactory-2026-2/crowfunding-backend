@@ -36,6 +36,9 @@ public class Transaction {
     @Column(nullable = false)
     private String status; // SUCCESS, DECLINED, ERROR
 
+    @Column(unique = true)
+    private String nonce;
+
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 }

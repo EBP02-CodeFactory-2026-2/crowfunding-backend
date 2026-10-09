@@ -35,14 +35,17 @@ public class Project {
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "funding_goal", nullable = false)
+    @Column(name = "funding_goal")
     private BigDecimal fundingGoal;
 
     @Column(name = "current_amount")
     private BigDecimal currentAmount = BigDecimal.ZERO;
 
-    @Column(nullable = false)
+    @Column()
     private LocalDateTime deadline;
+
+    @Column(name = "risk_score")
+    private Integer riskScore;
 
     @Column(nullable = false)
     private String status = "DRAFT"; // DRAFT, ACTIVE, FUNDED, FAILED
