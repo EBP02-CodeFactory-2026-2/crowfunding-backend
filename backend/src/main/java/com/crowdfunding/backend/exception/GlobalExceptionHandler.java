@@ -3,6 +3,7 @@ package com.crowdfunding.backend.exception;
 import java.time.Instant;
 import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -144,5 +145,31 @@ public class GlobalExceptionHandler {
                                 path,
                                 null);
                 return ResponseEntity.status(status).body(response);
+        }
+
+        // Manejo de violaciones de integridad en la Base de Datos (Ej: UNIQUE
+        // constraint)
+        @ExceptionHandler(DataIntegrityViolationException.class)
+        public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+                        DataIntegrityViolationException ex, HttpServletRequest request) {
+
+                String errorMsg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+
+                // Atrapamos si menciona "nonce", "unique", "duplicate" o
+                // "transactions_nonce_key"
+                if (errorMsg.contains("nonce") || errorMsg.contains("unique") || errorMsg.contains("duplicate")) {
+                        return buildResponse(
+                                        HttpStatus.UNPROCESSABLE_ENTITY, // 422 según contrato
+                                        "Unprocessable Content",
+                                        "El token de seguridad (nonce) ya ha sido utilizado en una transacción anterior",
+                                        request.getRequestURI());
+                }
+
+                // Fallback para otras violaciones de integridad no esperadas
+                return buildResponse(
+                                HttpStatus.CONFLICT,
+                                "Conflict",
+                                "Error de integridad en la base de datos",
+                                request.getRequestURI());
         }
 }
