@@ -3,6 +3,7 @@ package com.crowdfunding.backend.services;
 import com.crowdfunding.backend.persistence.TransactionRepository;
 import com.crowdfunding.backend.persistence.UserRepository;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,14 +21,15 @@ import com.crowdfunding.backend.exception.ResourceNotFoundException;
 import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.persistence.ProjectRepository;
 
-@Service 
+@Service
 public class ContributionService {
     private final TransactionRepository transactionRepository;
     final ContributionRepository contributionRepository;
     final ProjectRepository projectRepository;
     final UserRepository userRepository;
 
-    ContributionService(ContributionRepository contributionRepository, ProjectRepository projectRepository, TransactionRepository transactionRepository, UserRepository userRepository) {
+    ContributionService(ContributionRepository contributionRepository, ProjectRepository projectRepository,
+            TransactionRepository transactionRepository, UserRepository userRepository) {
         this.contributionRepository = contributionRepository;
         this.projectRepository = projectRepository;
         this.transactionRepository = transactionRepository;
@@ -37,7 +39,7 @@ public class ContributionService {
     @Transactional 
     public ContributionResponse supportProject(UUID projectId, ContributionRequest request){
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        
+
         Project project = projectRepository.findById(projectId).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
 
         if (!"ACTIVE".equals(project.getStatus())){
@@ -63,9 +65,10 @@ public class ContributionService {
         transaction.setAmount(request.amount());
         transaction.setPaymentMethod(request.paymentMethod());
         transaction.setStatus("SUCCESS"); 
+        transaction.setProcessedAt(LocalDateTime.now());
         transaction.setNonce(request.nonce());
-
         transactionRepository.save(transaction);
+        transactionRepository.flush(); // Red de seguridad contra concurrencia, obliga a guardar directamente a la DB
 
         projectRepository.incrementCurrentAmount(projectId, request.amount());
 
