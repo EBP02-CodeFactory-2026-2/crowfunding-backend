@@ -172,4 +172,22 @@ public class GlobalExceptionHandler {
                                 "Error de integridad en la base de datos",
                                 request.getRequestURI());
         }
+
+        // Manejo del error durante el cálculo del scoring de riesgo
+        @ExceptionHandler(RiskScoreCalculationException.class)
+        public ResponseEntity<ErrorResponse> handleRiskScoreCalculationException(RiskScoreCalculationException ex,
+                        HttpServletRequest request) {
+                List<ErrorResponse.ErrorDetail> errors = ex.getIssuesList().stream()
+                                .map(p -> new ErrorResponse.ErrorDetail(p.field(), p.detail())).toList();
+
+                ErrorResponse response = new ErrorResponse(
+                                Instant.now().toString(),
+                                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                                HttpStatus.UNPROCESSABLE_ENTITY.getReasonPhrase(),
+                                ex.getMessage(),
+                                request.getRequestURI(),
+                                errors);
+
+                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
+        }
 }
