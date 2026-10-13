@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
@@ -17,4 +18,5 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @Query("UPDATE Project p SET p.currentAmount = p.currentAmount + :amount WHERE p.id = :projectId")
     int incrementCurrentAmount(@Param("projectId") UUID projectId, @Param("amount") BigDecimal amount);
     // el retorno de int indica la cantidad de filas modificadas
+    List<Project> findByCreatorId(UUID creatorId);
 }

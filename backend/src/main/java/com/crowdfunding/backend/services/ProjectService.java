@@ -59,4 +59,12 @@ public class ProjectService {
         Project savedProject = projectRepository.save(project);
         return ProjectResponse.fromEntity(savedProject);
     }
+
+    @Transactional(readOnly = true)
+    public List<ProjectListResponse> getProjectsByUserId(UUID userId) {
+        return projectRepository.findByCreatorId(userId)
+                .stream()
+                .map(ProjectListResponse::fromEntity)
+                .toList();
+    }
 }
