@@ -11,7 +11,7 @@ public record PublishProjectResponse(
         int riskScore,
         String riskTag,
         BigDecimal fundingGoal,
-        LocalDateTime deadLine,
+        LocalDateTime deadline,
         LocalDateTime updatedAt) {
 
 }

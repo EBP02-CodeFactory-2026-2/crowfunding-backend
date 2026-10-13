@@ -190,4 +190,31 @@ public class GlobalExceptionHandler {
 
                 return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
         }
+
+        // Manejo de acceso denegado a un proyecto ajeno (403)
+        @ExceptionHandler(ProjectAccessDeniedException.class)
+        public ResponseEntity<ErrorResponse> handleProjectAccessDenied(
+                        ProjectAccessDeniedException ex, HttpServletRequest request) {
+                return buildResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request.getRequestURI());
+        }
+
+        // Manejo de campos obligatorios faltantes al publicar (400)
+        @ExceptionHandler(MissingProjectFieldsException.class)
+        public ResponseEntity<ErrorResponse> handleMissingProjectFields(
+                        MissingProjectFieldsException ex, HttpServletRequest request) {
+
+                List<ErrorResponse.ErrorDetail> details = ex.getMissingFields().stream()
+                                .map(field -> new ErrorResponse.ErrorDetail(field, "Campo obligatorio para publicar"))
+                                .toList();
+
+                ErrorResponse response = new ErrorResponse(
+                                Instant.now().toString(),
+                                HttpStatus.BAD_REQUEST.value(),
+                                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                                ex.getMessage(),
+                                request.getRequestURI(),
+                                details);
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
 }
