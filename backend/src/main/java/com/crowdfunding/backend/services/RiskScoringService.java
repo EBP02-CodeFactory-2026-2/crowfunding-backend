@@ -17,7 +17,7 @@ import com.crowdfunding.backend.persistence.ProjectRepository;
 @Service
 public class RiskScoringService implements ScoringEngine {
     private final ProjectRepository repository;
-    private static final String CALCULATION_ERROR_MESSAGE = "No se pudo calcular el riesgo del proyecto, revisa la información e inténtalo de nuevo.";
+    private static final String CALCULATION_ERROR_MESSAGE = "No se pudo calcular el riesgo del proyecto, revisa la información e inténtalo de nuevo";
 
     // Estados del historial
     private static final String STATUS_FUNDED = "FUNDED";
