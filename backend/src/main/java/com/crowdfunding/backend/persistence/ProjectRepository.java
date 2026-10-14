@@ -14,9 +14,12 @@ import java.util.UUID;
 
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @Transactional
-    @Modifying(clearAutomatically = true) // Indica que se alteran los datos y limpia el caché de persistencia después de ejecutarla
+    @Modifying(clearAutomatically = true) // Indica que se alteran los datos y limpia el caché de persistencia después
+                                          // de ejecutarla
     @Query("UPDATE Project p SET p.currentAmount = p.currentAmount + :amount WHERE p.id = :projectId")
     int incrementCurrentAmount(@Param("projectId") UUID projectId, @Param("amount") BigDecimal amount);
     // el retorno de int indica la cantidad de filas modificadas
     List<Project> findByCreatorId(UUID creatorId);
+
+    boolean existsByCreatorIdAndStatus(Long creatorId, String status);
 }

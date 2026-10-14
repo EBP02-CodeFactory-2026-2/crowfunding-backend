@@ -1,10 +1,10 @@
 package com.crowdfunding.backend.controllers;
 
-
 import com.crowdfunding.backend.project.CreateProjectRequest;
 import com.crowdfunding.backend.project.ProjectDetailResponse;
 import com.crowdfunding.backend.project.ProjectListResponse;
 import com.crowdfunding.backend.project.ProjectResponse;
+import com.crowdfunding.backend.project.PublishProjectResponse;
 import com.crowdfunding.backend.services.ProjectService;
 
 import jakarta.validation.Valid;
@@ -48,11 +48,17 @@ public class ProjectController {
         return ResponseEntity.ok(project);
     }
 
-
-// POST /api/projects - Crear un nuevo proyecto
+    // POST /api/projects - Crear un nuevo proyecto
     @PostMapping
     public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody CreateProjectRequest request) {
         ProjectResponse createdProject = projectService.createProject(request);
         return new ResponseEntity<>(createdProject, HttpStatus.CREATED);
+    }
+
+    // POST /api/v1/projects/{id}/publish - Publicar un proyecto (DRAFT -> ACTIVE)
+    @PostMapping("/{id}/publish")
+    public ResponseEntity<PublishProjectResponse> publishProject(@PathVariable UUID id) {
+        PublishProjectResponse response = projectService.publishProject(id);
+        return ResponseEntity.ok(response);
     }
 }
