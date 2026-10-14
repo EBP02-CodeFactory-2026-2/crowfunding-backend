@@ -6,6 +6,7 @@ import com.crowdfunding.backend.exception.MissingProjectFieldsException;
 import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ProjectLockedException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
+import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.interfaces.ScoringEngine;
 import com.crowdfunding.backend.persistence.ProjectRepository;
 import com.crowdfunding.backend.persistence.UserRepository;
@@ -24,14 +25,18 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final ContributionRepository contributionRepository;
     private final ScoringEngine scoringEngine;
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_ACTIVE = "ACTIVE";
 
-    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository,
-            ScoringEngine scoringEngine) {
+    public ProjectService(ProjectRepository projectRepository, 
+                          UserRepository userRepository, 
+                          ContributionRepository contributionRepository, 
+                          ScoringEngine scoringEngine) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
+        this.contributionRepository = contributionRepository;
         this.scoringEngine = scoringEngine;
     }
 
@@ -70,6 +75,22 @@ public class ProjectService {
         return ProjectResponse.fromEntity(savedProject);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProjectListResponse> getMyProjects() {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        User creator = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario autenticado no encontrado: " + userEmail));
+
+        return projectRepository.findByCreatorId(creator.getId())
+                .stream()
+                .map(project -> {
+                    int backersCount = contributionRepository.countByProjectIdAndStatus(project.getId(), "COMPLETED");
+                    return ProjectListResponse.fromEntity(project, backersCount);
+                })
+                .toList();
+    }
+
     @Transactional
     public PublishProjectResponse publishProject(UUID projectId) {
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -83,7 +104,6 @@ public class ProjectService {
 
     @Transactional
     public PublishProjectResponse publishProject(UUID projectId, Long userId) {
-
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
 
@@ -91,13 +111,11 @@ public class ProjectService {
         User creator = project.getCreator();
         if (!creator.getId().equals(userId)) {
             throw new ProjectAccessDeniedException("No tienes permiso para publicar este proyecto");
-
         }
 
         // Error 409: solo se puede publicar desde DRAFT
         if (!STATUS_DRAFT.equals(project.getStatus())) {
             throw new ProjectLockedException("El proyecto ya fue publicado y no está en estado borrador");
-
         }
 
         // Error 400: campos obligatorios (CA1) acumulando todos los faltantes
@@ -120,8 +138,7 @@ public class ProjectService {
                     "Faltan campos obligatorios para publicar el proyecto", missing);
         }
 
-        // Error 422: si falla, se lanza RiskScoreCalculationException y el proyecto no
-        // se toca
+        // Error 422: si falla, se lanza RiskScoreCalculationException y el proyecto no se toca
         int riskScore = scoringEngine.calculateRiskScore(project, creator);
 
         // Solo ahora se modifica el proyecto
@@ -138,7 +155,6 @@ public class ProjectService {
                 saved.getFundingGoal(),
                 saved.getDeadline(),
                 saved.getUpdatedAt()
-
         );
     }
 

@@ -34,6 +34,13 @@ public class ProjectController {
         return ResponseEntity.ok(projects);
     }
 
+    // GET /api/projects/me - Obtener los proyectos del usuario autenticado
+    @GetMapping("/me")
+    public ResponseEntity<List<ProjectListResponse>> getMyProjects() {
+        List<ProjectListResponse> myProjects = projectService.getMyProjects();
+        return ResponseEntity.ok(myProjects);
+    }
+
     // GET /api/projects/{id} - Obtener un proyecto específico por ID
     @GetMapping("/{id}")
     public ResponseEntity<ProjectDetailResponse> getProjectById(@PathVariable UUID id) {
