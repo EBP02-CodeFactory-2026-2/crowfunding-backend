@@ -2,9 +2,9 @@
 
 Backend de una plataforma de crowdfunding, desarrollado en **Spring Boot** con autenticación **JWT** y persistencia en **PostgreSQL (Supabase)**.
 
-Permite a los usuarios registrarse, autenticarse, crear proyectos de financiación colectiva y consultarlos públicamente. El modelo de datos ya contempla contribuciones y transacciones para futuras iteraciones.
+Permite a los usuarios registrarse, autenticarse, crear proyectos de financiación colectiva (en estado borrador o activo), consultar campañas públicamente y realizar aportes económicos. El sistema incluye un motor de evaluación de riesgo automático y protección contra ataques de repetición.
 
-> **Estado actual (Sprint 1):** implementados el registro/login de usuarios y el CRUD básico de proyectos (crear, listar, ver detalle). Las entidades `Contribution` y `Transaction` están modeladas en la base de datos, pero aún no tienen endpoints expuestos.
+> **Estado actual (Sprint 2 completado):** Se ha implementado el ciclo de vida completo de los proyectos (creación en borrador, edición, publicación con cálculo de riesgo y eliminación condicional). Además, se habilitó el módulo de aportes económicos con validación de montos mínimos y protección contra *replay attacks* mediante `nonce`.
 
 ## Tecnologías
 
@@ -29,6 +29,7 @@ El proyecto sigue una organización por capas dentro de `com.crowdfunding.backen
 ```
 config/        Configuración de Spring (CORS, OpenAPI, Security)
 controllers/   Controladores REST (Auth, Project)
+contribution/   DTOs específicos para el flujo de aportes
 entity/        Entidades JPA (User, Project, Contribution, Transaction)
 login/         DTOs y filtro de autenticación JWT
 register/      DTOs de registro de usuario
@@ -43,11 +44,11 @@ La seguridad es **stateless**: cada request autenticado se valida mediante un `J
 ## Modelo de datos
 
 - **User**: usuarios registrados (nombre, email, contraseña hasheada).
-- **Project**: proyectos de financiación (título, descripción, meta de recaudación, fecha límite, estado).
+- **Project**: proyectos de financiación (título, descripción, meta, fecha límite, estado `DRAFT`/`ACTIVE`/`FUNDED`/`FAILED`, y risk score).
 - **Contribution**: aportes de un usuario a un proyecto (monto, estado: `PENDING`, `COMPLETED`, `REFUNDED`).
-- **Transaction**: registro de la transacción asociada a una contribución.
+- **Transaction**: registro de la transacción asociada a una contribución, incluyendo un campo nonce único para prevenir ataques de repetición.
 
-El esquema completo está en [`database/schema-spint1.sql`](database/schema-spint1.sql), con datos de ejemplo en [`seed-data.sql`](database/seed-data.sql) y un script de limpieza en [`clear-db.sql`](database/clear-db.sql).
+El esquema completo está en [`database/schema-spint1.sql`](database/schema-spint1.sql) y las actuaqlizaciones de Sprint 2 en [`database/schema-sprint2.sql`](database/schema-sprint2.sql). Incluye datos de ejemplo en [`seed-data.sql`](database/seed-data.sql) y un script de limpieza en [`clear-db.sql`](database/clear-db.sql).
 
 ## Requisitos previos
 
@@ -105,7 +106,9 @@ Con la aplicación corriendo, la documentación interactiva (Swagger UI) está d
 http://localhost:8080/swagger-ui.html
 ```
 
-También se incluye una colección de Postman en [`docs/Crowdfunding API - Sprint 1.postman_collection.json`](docs/Crowdfunding%20API%20-%20Sprint%201.postman_collection.json) con ejemplos de las peticiones disponibles.
+También se incluyen colecciones de Postman en la carpeta `docs/` con ejemplo de las peticiones y scripts para guardar tokens automáticamente:
+- [`docs/Crowdfunding API - Sprint 1.postman_collection.json`](docs/Crowdfunding%20API%20-%20Sprint%201.postman_collection.json)
+- [`docs/Crowdfunding API - Sprint 2.postman_collection.json`](docs/Crowdfunding%20API%20-%20Sprint%202.postman_collection.json)
 
 ## Endpoints principales
 
@@ -122,6 +125,17 @@ También se incluye una colección de Postman en [`docs/Crowdfunding API - Sprin
 |--------|----------|-----------------|-------------------------------------|
 | GET    | `/`      | No              | Lista todos los proyectos           |
 | GET    | `/{id}`  | No              | Obtiene el detalle de un proyecto   |
+| GET    | `/me`    | Sí (JWT)        | Lista los proyectos creados por el usuario autenticado   |
 | POST   | `/`      | Sí (JWT)        | Crea un nuevo proyecto              |
+| PUT    | `/{id}`  | Sí (JWT)        | Edita un proyecto (restringe meta/plazo si está ACTIVE y recalcula riesgo) |
+| POST   | `/{id}/publish`      | Sí (JWT)        | Cambia el estado a ACTIVE y calcula el risk_score |
+| DELETE   | `/{id}`      | Sí (JWT)        | Elimina un proyecto (solo si no tiene aportes) |
 
-> Los endpoints de lectura de proyectos son públicos; crear un proyecto y cualquier operación futura sobre contribuciones/transacciones requerirán un token JWT válido en el header `Authorization: Bearer <token>`.
+### Aportes — `/api/v1/projects/{id}/contributions`
+
+| Método | Endpoint | Auth requerida | Descripción                        |
+|--------|----------|-----------------|-------------------------------------|
+| POST   | `/{id}/contributions`      | Sí (JWT)        | Registra un aporte (valida monto mínimo ≥ $10.000 y unicidad del nonce) |
+
+
+> Todos los endpoints protegidos requieren un token JWT válido en el header: `Authorization: Bearer <token>`. El sistema valida la propiedad del recurso (IDOR prevention) en las operaciones de escritura y eliminación.
