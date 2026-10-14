@@ -15,9 +15,10 @@ public record ProjectListResponse(
     String imageUrl,
     LocalDateTime deadline,
     String status,
-    String riskTag
+    String riskTag,
+    Integer backersCount // Agregamos backersCount
 ) {
-    public static ProjectListResponse fromEntity(Project project) {
+    public static ProjectListResponse fromEntity(Project project, Integer backersCount) {
         Integer score = project.getRiskScore();
         String tag = calculateRiskTag(score);
 
@@ -30,8 +31,13 @@ public record ProjectListResponse(
             project.getImageUrl(),
             project.getDeadline(),
             project.getStatus() != null ? project.getStatus().toString() : null,
-            tag
+            tag,
+            backersCount != null ? backersCount : 0
         );
+    }
+
+    public static ProjectListResponse fromEntity(Project project) {
+        return fromEntity(project, 0);
     }
 
     private static String calculateRiskTag(Integer score) {

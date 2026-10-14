@@ -74,7 +74,10 @@ public class ProjectService {
 
         return projectRepository.findByCreatorId(creator.getId())
                 .stream()
-                .map(ProjectListResponse::fromEntity)
+                .map(project -> {
+                    int backersCount = contributionRepository.countByProjectIdAndStatus(project.getId(), "COMPLETED");
+                    return ProjectListResponse.fromEntity(project, backersCount);
+                })
                 .toList();
     }
 }
