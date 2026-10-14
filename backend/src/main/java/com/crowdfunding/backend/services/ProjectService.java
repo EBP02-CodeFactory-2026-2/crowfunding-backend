@@ -3,6 +3,7 @@ package com.crowdfunding.backend.services;
 import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.entity.User;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
+import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.persistence.ProjectRepository;
 import com.crowdfunding.backend.persistence.UserRepository;
 import com.crowdfunding.backend.project.*;
@@ -19,10 +20,14 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final ContributionRepository contributionRepository;
 
-    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository) {
+    public ProjectService(ProjectRepository projectRepository, 
+                          UserRepository userRepository, 
+                          ContributionRepository contributionRepository) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
+        this.contributionRepository = contributionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -61,8 +66,13 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProjectListResponse> getProjectsByUserId(UUID userId) {
-        return projectRepository.findByCreatorId(userId)
+    public List<ProjectListResponse> getMyProjects() {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        User creator = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario autenticado no encontrado: " + userEmail));
+
+        return projectRepository.findByCreatorId(creator.getId())
                 .stream()
                 .map(ProjectListResponse::fromEntity)
                 .toList();

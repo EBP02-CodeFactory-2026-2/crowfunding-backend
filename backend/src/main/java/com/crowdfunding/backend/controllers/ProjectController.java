@@ -34,10 +34,10 @@ public class ProjectController {
         return ResponseEntity.ok(projects);
     }
 
-    // GET /api/v1/projects/user/{userId} - Ver mis proyectos propios
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<ProjectListResponse>> getProjectsByUser(@PathVariable UUID userId) {
-        List<ProjectListResponse> myProjects = projectService.getProjectsByUserId(userId);
+    // GET /api/projects/me - Obtener los proyectos del usuario autenticado
+    @GetMapping("/me")
+    public ResponseEntity<List<ProjectListResponse>> getMyProjects() {
+        List<ProjectListResponse> myProjects = projectService.getMyProjects();
         return ResponseEntity.ok(myProjects);
     }
 

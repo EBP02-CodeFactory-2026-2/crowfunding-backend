@@ -15,12 +15,17 @@ public record ProjectDetailResponse(
     LocalDateTime deadline,
     String status,
     CreatorDto creator,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    String riskTag 
 ) {
+
     // Record anidado para el objeto creador
     public record CreatorDto(Long id, String fullName) {}
 
     public static ProjectDetailResponse fromEntity(Project project) {
+        Integer score = project.getRiskScore();
+        String tag = calculateRiskTag(score);
+
         return new ProjectDetailResponse(
             project.getId(),
             project.getTitle(),
@@ -32,7 +37,15 @@ public record ProjectDetailResponse(
             project.getStatus(),
             project.getCreator() != null ? 
                 new CreatorDto(project.getCreator().getId(), project.getCreator().getFullName()) : null,
-            project.getCreatedAt()
+            project.getCreatedAt(),
+            tag 
         );
+    }
+
+    private static String calculateRiskTag(Integer score) {
+        if (score == null) return "Sin evaluar";
+        if (score <= 1) return "Riesgo Alto";
+        if (score <= 5) return "Riesgo Medio";
+        return "Riesgo Bajo";
     }
 }

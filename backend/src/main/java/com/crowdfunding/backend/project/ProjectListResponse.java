@@ -15,12 +15,11 @@ public record ProjectListResponse(
     String imageUrl,
     LocalDateTime deadline,
     String status,
-    Integer scoring,     
-    String riskLabel    
+    String riskTag
 ) {
     public static ProjectListResponse fromEntity(Project project) {
-        Integer score = project.getScoring(); 
-        String risk = calculateRiskLabel(score);
+        Integer score = project.getRiskScore();
+        String tag = calculateRiskTag(score);
 
         return new ProjectListResponse(
             project.getId(),
@@ -31,15 +30,14 @@ public record ProjectListResponse(
             project.getImageUrl(),
             project.getDeadline(),
             project.getStatus() != null ? project.getStatus().toString() : null,
-            score,
-            risk
+            tag
         );
     }
 
-    private static String calculateRiskLabel(Integer score) {
-        if (score == null) return "SIN EVALUAR";
-        if (score >= 80) return "BAJO RIESGO";
-        if (score >= 50) return "RIESGO MEDIO";
-        return "ALTO RIESGO";
+    private static String calculateRiskTag(Integer score) {
+        if (score == null) return "Sin evaluar";
+        if (score <= 1) return "Riesgo Alto";
+        if (score <= 5) return "Riesgo Medio";
+        return "Riesgo Bajo";
     }
 }
