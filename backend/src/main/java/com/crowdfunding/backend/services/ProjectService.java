@@ -3,10 +3,12 @@ package com.crowdfunding.backend.services;
 import com.crowdfunding.backend.entity.Contribution;
 import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.entity.User;
+import com.crowdfunding.backend.exception.DeleteConflictException;
 import com.crowdfunding.backend.exception.MissingProjectFieldsException;
 import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ProjectLockedException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
+import com.crowdfunding.backend.exception.RiskScoreCalculationException;
 import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.interfaces.ScoringEngine;
 import com.crowdfunding.backend.persistence.ProjectRepository;
@@ -169,7 +171,7 @@ public class ProjectService {
         }
     }
 
-    public void deletedProject(UUID projectId) {
+    public void deleteProject(UUID projectId) {
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
 
         User user = userRepository.findByEmail(userEmail)
@@ -181,8 +183,8 @@ public class ProjectService {
 
         // Error 403: el usuario autenticado no es el dueño
         User creator = project.getCreator();
-        if (!creator.getId().equals(userId)) {
-            throw new ProjectAccessDeniedException("No tienes permiso para publicar este proyecto");
+        if (!creator.getId().equals(user.getId())) {
+            throw new ProjectAccessDeniedException("No tienes permiso para eliminar este proyecto");
         }
 
         // Error 409: Conflict
@@ -208,9 +210,11 @@ public class ProjectService {
 
         // Error 403: el usuario autenticado no es el dueño
         User creator = project.getCreator();
-        if (!creator.getId().equals(userId)) {
+        if (!creator.getId().equals(user.getId())) {
             throw new ProjectAccessDeniedException("No tienes permiso para publicar este proyecto");
         }
+
+        boolean isActive = STATUS_ACTIVE.equals(project.getStatus());
 
         if (!STATUS_DRAFT.equals(project.getStatus())) {
             if (request.fundingGoal() == null || request.deadline() == null) {
@@ -220,6 +224,7 @@ public class ProjectService {
             }
 
         }
+
         // Aplicar solo los campos enviados
         boolean contentChanged = false;
 
@@ -245,10 +250,11 @@ public class ProjectService {
         // CA5: recalcular riesgo si se editó contenido en un proyecto activo
         if (isActive && contentChanged) {
             try {
-                project.setRiskScore(riskScoringService.calculateScore(project));
+                project.setRiskScore(scoringEngine.calculateRiskScore(project, creator));
             } catch (Exception e) {
                 throw new RiskScoreCalculationException(
-                        "No fue posible recalcular el riesgo del proyecto: " + e.getMessage());
+                        "No fue posible recalcular el riesgo del proyecto: " + e.getMessage(),
+                    new ArrayList<>());
             }
         }
 

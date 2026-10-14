@@ -65,8 +65,8 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletedProject(@PathVariable UUID id){
-        projectService.deletedProject(id);
+    public ResponseEntity<Void> deleteProject(@PathVariable UUID id){
+        projectService.deleteProject(id);
         return ResponseEntity.noContent().build();
         
     }

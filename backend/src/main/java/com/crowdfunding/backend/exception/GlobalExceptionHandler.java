@@ -222,6 +222,6 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(DeleteConflictException.class)
         public ResponseEntity<ErrorResponse> handleDeleteConflictException(
                         DeleteConflictException ex, HttpServletRequest request) {
-                return buildResponse(HttpStatus.CONFLICT, "CONFLICT", ex.getMessage(), request.getRequestURI);
+                return buildResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request.getRequestURI());
         }
 }
