@@ -22,4 +22,6 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     List<Project> findByCreatorId(UUID creatorId);
 
     boolean existsByCreatorIdAndStatus(Long creatorId, String status);
+
+    List<Project> findByStatus(String status);
 }

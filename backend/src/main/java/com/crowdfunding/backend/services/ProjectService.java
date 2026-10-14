@@ -42,7 +42,7 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectListResponse> getAllProjects() {
-        return projectRepository.findAll()
+        return projectRepository.findByStatus(STATUS_ACTIVE)
                 .stream()
                 .map(ProjectListResponse::fromEntity)
                 .toList();
