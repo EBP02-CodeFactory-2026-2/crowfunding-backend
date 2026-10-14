@@ -217,4 +217,11 @@ public class GlobalExceptionHandler {
 
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
+
+        // Manejo de error al eliminar proyecto con contribuciones
+        @ExceptionHandler(DeleteConflictException.class)
+        public ResponseEntity<ErrorResponse> handleDeleteConflictException(
+                        DeleteConflictException ex, HttpServletRequest request) {
+                return buildResponse(HttpStatus.CONFLICT, "CONFLICT", ex.getMessage(), request.getRequestURI);
+        }
 }

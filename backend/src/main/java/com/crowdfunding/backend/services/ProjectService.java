@@ -1,5 +1,6 @@
 package com.crowdfunding.backend.services;
 
+import com.crowdfunding.backend.entity.Contribution;
 import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.entity.User;
 import com.crowdfunding.backend.exception.MissingProjectFieldsException;
@@ -167,4 +168,33 @@ public class ProjectService {
             return "Riesgo Bajo";
         }
     }
+
+    public void deletedProject (UUID projectId){
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
+
+        // Error 403: el usuario autenticado no es el dueño
+        User creator = project.getCreator();
+        if (!creator.getId().equals(userId)) {
+            throw new ProjectAccessDeniedException("No tienes permiso para publicar este proyecto");
+        }
+
+        // Error 409: Conflict 
+        int hasContributions = contributionRepository.countByProjectIdAndStatus(projectId, "COMPLETED");
+        if (hasContributions > 0){
+            throw new DeleteConflictException ("No se puede eliminar un proyecto con contribuciones");
+        }
+
+        project.setStatus("DELETED");
+        projectRepository.save(project);
+        
+
+    }
 }
+
