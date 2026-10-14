@@ -1,11 +1,14 @@
 package com.crowdfunding.backend.services;
 
+import com.crowdfunding.backend.entity.Contribution;
 import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.entity.User;
+import com.crowdfunding.backend.exception.DeleteConflictException;
 import com.crowdfunding.backend.exception.MissingProjectFieldsException;
 import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ProjectLockedException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
+import com.crowdfunding.backend.exception.RiskScoreCalculationException;
 import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.interfaces.ScoringEngine;
 import com.crowdfunding.backend.persistence.ProjectRepository;
@@ -30,10 +33,10 @@ public class ProjectService {
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_ACTIVE = "ACTIVE";
 
-    public ProjectService(ProjectRepository projectRepository, 
-                          UserRepository userRepository, 
-                          ContributionRepository contributionRepository, 
-                          ScoringEngine scoringEngine) {
+    public ProjectService(ProjectRepository projectRepository,
+            UserRepository userRepository,
+            ContributionRepository contributionRepository,
+            ScoringEngine scoringEngine) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.contributionRepository = contributionRepository;
@@ -78,7 +81,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<ProjectListResponse> getMyProjects() {
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        
+
         User creator = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario autenticado no encontrado: " + userEmail));
 
@@ -138,7 +141,8 @@ public class ProjectService {
                     "Faltan campos obligatorios para publicar el proyecto", missing);
         }
 
-        // Error 422: si falla, se lanza RiskScoreCalculationException y el proyecto no se toca
+        // Error 422: si falla, se lanza RiskScoreCalculationException y el proyecto no
+        // se toca
         int riskScore = scoringEngine.calculateRiskScore(project, creator);
 
         // Solo ahora se modifica el proyecto
@@ -154,8 +158,7 @@ public class ProjectService {
                 resolveRiskTag(project.getRiskScore()),
                 saved.getFundingGoal(),
                 saved.getDeadline(),
-                saved.getUpdatedAt()
-        );
+                saved.getUpdatedAt());
     }
 
     private String resolveRiskTag(int score) {
@@ -167,4 +170,96 @@ public class ProjectService {
             return "Riesgo Bajo";
         }
     }
+
+    public void deleteProject(UUID projectId) {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
+
+        // Error 403: el usuario autenticado no es el dueño
+        User creator = project.getCreator();
+        if (!creator.getId().equals(user.getId())) {
+            throw new ProjectAccessDeniedException("No tienes permiso para eliminar este proyecto");
+        }
+
+        // Error 409: Conflict
+        int hasContributions = contributionRepository.countByProjectIdAndStatus(projectId, "COMPLETED");
+        if (hasContributions > 0) {
+            throw new DeleteConflictException("No se puede eliminar un proyecto con contribuciones");
+        }
+
+        project.setStatus("DELETED");
+        projectRepository.save(project);
+
+    }
+
+    public EditProjectResponse editProject(UUID projectId, EditProjectRequest request) {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
+
+        // Error 403: el usuario autenticado no es el dueño
+        User creator = project.getCreator();
+        if (!creator.getId().equals(user.getId())) {
+            throw new ProjectAccessDeniedException("No tienes permiso para publicar este proyecto");
+        }
+
+        boolean isActive = STATUS_ACTIVE.equals(project.getStatus());
+
+        if (!STATUS_DRAFT.equals(project.getStatus())) {
+            if (request.fundingGoal() == null || request.deadline() == null) {
+                throw new ProjectLockedException(
+                        "La meta y el plazo no pueden modificarse una vez el proyecto está activo");
+
+            }
+
+        }
+
+        // Aplicar solo los campos enviados
+        boolean contentChanged = false;
+
+        if (request.title() != null) {
+            project.setTitle(request.title());
+            contentChanged = true;
+        }
+        if (request.description() != null) {
+            project.setDescription(request.description());
+            contentChanged = true;
+        }
+        if (request.imageUrl() != null) {
+            project.setImageUrl(request.imageUrl());
+            contentChanged = true;
+        }
+        if (request.fundingGoal() != null) { // solo llega aquí si es DRAFT
+            project.setFundingGoal(request.fundingGoal());
+        }
+        if (request.deadline() != null) { // solo llega aquí si es DRAFT
+            project.setDeadline(request.deadline());
+        }
+
+        // CA5: recalcular riesgo si se editó contenido en un proyecto activo
+        if (isActive && contentChanged) {
+            try {
+                project.setRiskScore(scoringEngine.calculateRiskScore(project, creator));
+            } catch (Exception e) {
+                throw new RiskScoreCalculationException(
+                        "No fue posible recalcular el riesgo del proyecto: " + e.getMessage(),
+                    new ArrayList<>());
+            }
+        }
+
+        Project saved = projectRepository.saveAndFlush(project);
+        return EditProjectResponse.fromEntity(saved);
+    }
+
 }
