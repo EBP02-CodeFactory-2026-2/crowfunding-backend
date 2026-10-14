@@ -19,7 +19,9 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @Query("UPDATE Project p SET p.currentAmount = p.currentAmount + :amount WHERE p.id = :projectId")
     int incrementCurrentAmount(@Param("projectId") UUID projectId, @Param("amount") BigDecimal amount);
     // el retorno de int indica la cantidad de filas modificadas
-    List<Project> findByCreatorId(UUID creatorId);
+    List<Project> findByCreatorId(Long creatorId);
 
     boolean existsByCreatorIdAndStatus(Long creatorId, String status);
+
+    List<Project> findByStatus(String status);
 }
