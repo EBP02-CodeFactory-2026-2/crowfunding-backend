@@ -1,6 +1,8 @@
 package com.crowdfunding.backend.controllers;
 
 import com.crowdfunding.backend.project.CreateProjectRequest;
+import com.crowdfunding.backend.project.EditProjectRequest;
+import com.crowdfunding.backend.project.EditProjectResponse;
 import com.crowdfunding.backend.project.ProjectDetailResponse;
 import com.crowdfunding.backend.project.ProjectListResponse;
 import com.crowdfunding.backend.project.ProjectResponse;
@@ -67,5 +69,11 @@ public class ProjectController {
         projectService.deletedProject(id);
         return ResponseEntity.noContent().build();
         
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<EditProjectResponse> editProject(@PathVariable UUID id, @Valid @RequestBody EditProjectRequest request){
+        EditProjectResponse response = projectService.editProject(id, request);
+        return ResponseEntity.ok(response);
     }
 }
