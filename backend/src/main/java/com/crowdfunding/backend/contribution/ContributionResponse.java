@@ -33,7 +33,7 @@ public record ContributionResponse(
             contribution.getId(), 
             project.getId(), 
             contribution.getAmount(), 
-            contribution.getStatus(), 
+            contribution.getStatus().toString(), 
             transactionDTO, 
             project.getCurrentAmount(), 
             contribution.getCreatedAt()

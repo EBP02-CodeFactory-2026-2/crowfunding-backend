@@ -1,6 +1,7 @@
 package com.crowdfunding.backend.project;
 
 import com.crowdfunding.backend.entity.Project;
+import com.crowdfunding.backend.entity.ProjectStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,8 +19,6 @@ public record EditProjectResponse(
         String riskTag,
         LocalDateTime updatedAt) {
     public static EditProjectResponse fromEntity(Project project) {
-        Integer score = project.getRiskScore();
-        String tag = calculateRiskTag(score);
         return new EditProjectResponse(
                 project.getId(),
                 project.getTitle(),
@@ -28,19 +27,9 @@ public record EditProjectResponse(
                 project.getFundingGoal(),
                 project.getCurrentAmount() != null ? project.getCurrentAmount() : BigDecimal.ZERO,
                 project.getDeadline(),
-                project.getStatus() != null ? project.getStatus().toString() : "DRAFT",
-                tag,
+                project.getStatus().name(),
+                project.getRiskTag(),
                 project.getUpdatedAt()
         );
-    }
-
-    private static String calculateRiskTag(Integer score) {
-        if (score == null)
-            return "Sin evaluar";
-        if (score <= 1)
-            return "Riesgo Alto";
-        if (score <= 5)
-            return "Riesgo Medio";
-        return "Riesgo Bajo";
     }
 }

@@ -13,8 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.crowdfunding.backend.contribution.ContributionRequest;
 import com.crowdfunding.backend.contribution.ContributionResponse;
 import com.crowdfunding.backend.entity.Contribution;
+import com.crowdfunding.backend.entity.ContributionStatus;
 import com.crowdfunding.backend.entity.Project;
+import com.crowdfunding.backend.entity.ProjectStatus;
 import com.crowdfunding.backend.entity.Transaction;
+import com.crowdfunding.backend.entity.TransactionStatus;
+import com.crowdfunding.backend.exception.InvalidContributionAmountException;
 import com.crowdfunding.backend.exception.ProjectLockedException;
 import com.crowdfunding.backend.exception.ReplayAttackException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
@@ -36,18 +40,27 @@ public class ContributionService {
         this.userRepository = userRepository;
     }
 
-    @Transactional 
-    public ContributionResponse supportProject(UUID projectId, ContributionRequest request){
+    @Transactional
+    public ContributionResponse supportProject(UUID projectId, ContributionRequest request) {
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        Project project = projectRepository.findById(projectId).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
 
-        if (!"ACTIVE".equals(project.getStatus())){
+        // Validar advertencia de riesgo (HU-2.2.3)
+        if ("Riesgo Alto".equals(project.getRiskTag())
+                && !Boolean.TRUE.equals(request.riskWarningAccepted())) {
+            throw new InvalidContributionAmountException(
+                    "Debes confirmar la advertencia de riesgo antes de aportar");
+        }
+
+        if (!ProjectStatus.ACTIVE.equals(project.getStatus())) {
             throw new ProjectLockedException("El proyecto no se encuentra en estado activo y no puede recibir aportes");
         }
 
-        if (transactionRepository.existsByNonce(request.nonce())){
-            throw new ReplayAttackException("El token de seguridad (nonce) ya ha sido utilizado en una transacción anterior");
+        if (transactionRepository.existsByNonce(request.nonce())) {
+            throw new ReplayAttackException(
+                    "El token de seguridad (nonce) ya ha sido utilizado en una transacción anterior");
         }
 
         Contribution contribution = new Contribution();
@@ -55,16 +68,16 @@ public class ContributionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario autenticado no encontrado: " + userEmail)));
         contribution.setProject(project);
         contribution.setAmount(request.amount());
-        contribution.setStatus("COMPLETED"); // el mock de pasarela siempre será exitoso en este sprint
+        contribution.setStatus(ContributionStatus.COMPLETED); // el mock de pasarela siempre será exitoso en este sprint
 
         contributionRepository.save(contribution);
 
         Transaction transaction = new Transaction();
         transaction.setContribution(contribution);
-        transaction.setReferenceCode("MOCK-"+ UUID.randomUUID());
+        transaction.setReferenceCode("MOCK-" + UUID.randomUUID());
         transaction.setAmount(request.amount());
         transaction.setPaymentMethod(request.paymentMethod());
-        transaction.setStatus("SUCCESS"); 
+        transaction.setStatus(TransactionStatus.SUCCESS);
         transaction.setProcessedAt(LocalDateTime.now());
         transaction.setNonce(request.nonce());
         transactionRepository.save(transaction);

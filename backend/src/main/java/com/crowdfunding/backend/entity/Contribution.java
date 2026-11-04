@@ -33,7 +33,8 @@ public class Contribution {
     private BigDecimal amount;
 
     @Column(nullable = false)
-    private String status; // PENDING, COMPLETED, REFUNDED
+    @Enumerated(EnumType.STRING)
+    private ContributionStatus status; // PENDING, COMPLETED, REFUNDED
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

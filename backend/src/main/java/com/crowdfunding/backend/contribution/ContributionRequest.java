@@ -13,5 +13,6 @@ public record ContributionRequest(
     @NotBlank(message = "El método de pago es obligatorio")
     String paymentMethod,
     @NotBlank(message = "El token de seguridad es obligatorio")
-    String nonce
+    String nonce,
+    Boolean riskWarningAccepted
 ) {}
