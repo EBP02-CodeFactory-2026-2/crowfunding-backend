@@ -18,8 +18,6 @@ public record EditProjectResponse(
         String riskTag,
         LocalDateTime updatedAt) {
     public static EditProjectResponse fromEntity(Project project) {
-        Integer score = project.getRiskScore();
-        String tag = calculateRiskTag(score);
         return new EditProjectResponse(
                 project.getId(),
                 project.getTitle(),
@@ -29,18 +27,8 @@ public record EditProjectResponse(
                 project.getCurrentAmount() != null ? project.getCurrentAmount() : BigDecimal.ZERO,
                 project.getDeadline(),
                 project.getStatus() != null ? project.getStatus().toString() : "DRAFT",
-                tag,
+                project.getRiskTag(),
                 project.getUpdatedAt()
         );
-    }
-
-    private static String calculateRiskTag(Integer score) {
-        if (score == null)
-            return "Sin evaluar";
-        if (score <= 1)
-            return "Riesgo Alto";
-        if (score <= 5)
-            return "Riesgo Medio";
-        return "Riesgo Bajo";
     }
 }

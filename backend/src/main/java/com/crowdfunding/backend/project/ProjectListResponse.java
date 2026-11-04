@@ -19,9 +19,6 @@ public record ProjectListResponse(
     Integer backersCount // Agregamos backersCount
 ) {
     public static ProjectListResponse fromEntity(Project project, Integer backersCount) {
-        Integer score = project.getRiskScore();
-        String tag = calculateRiskTag(score);
-
         return new ProjectListResponse(
             project.getId(),
             project.getTitle(),
@@ -31,7 +28,7 @@ public record ProjectListResponse(
             project.getImageUrl(),
             project.getDeadline(),
             project.getStatus() != null ? project.getStatus().toString() : null,
-            tag,
+            project.getRiskTag(),
             backersCount != null ? backersCount : 0
         );
     }
@@ -40,10 +37,4 @@ public record ProjectListResponse(
         return fromEntity(project, 0);
     }
 
-    private static String calculateRiskTag(Integer score) {
-        if (score == null) return "Sin evaluar";
-        if (score <= 1) return "Riesgo Alto";
-        if (score <= 5) return "Riesgo Medio";
-        return "Riesgo Bajo";
-    }
 }

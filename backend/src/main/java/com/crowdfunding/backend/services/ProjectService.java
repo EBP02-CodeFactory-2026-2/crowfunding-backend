@@ -155,20 +155,10 @@ public class ProjectService {
                 saved.getTitle(),
                 saved.getStatus(),
                 saved.getRiskScore(),
-                resolveRiskTag(project.getRiskScore()),
+                project.getRiskTag(),
                 saved.getFundingGoal(),
                 saved.getDeadline(),
                 saved.getUpdatedAt());
-    }
-
-    private String resolveRiskTag(int score) {
-        if (score <= 1) {
-            return "Riesgo Alto";
-        } else if (score <= 5 && score >= 2) {
-            return "Riesgo Medio";
-        } else {
-            return "Riesgo Bajo";
-        }
     }
 
     public void deleteProject(UUID projectId) {

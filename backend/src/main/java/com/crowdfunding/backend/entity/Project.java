@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.crowdfunding.backend.utils.RiskUtils;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -57,4 +59,9 @@ public class Project {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Transient
+    public String getRiskTag() {
+        return RiskUtils.calculateRiskTag(this.riskScore);
+    }
 }
