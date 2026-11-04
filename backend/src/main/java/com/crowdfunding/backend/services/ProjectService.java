@@ -44,9 +44,13 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectListResponse> getAllProjects() {
-        return projectRepository.findByStatus(ProjectStatus.ACTIVE)
+        return projectRepository.findActiveProjectsWithBackersCount()
                 .stream()
-                .map(ProjectListResponse::fromEntity)
+                .map(row -> {
+                    Project p = (Project) row[0];
+                    Long count = (Long) row[1];
+                    return ProjectListResponse.fromEntity(p, count.intValue());
+                })
                 .toList();
     }
 
@@ -87,7 +91,8 @@ public class ProjectService {
         return projectRepository.findByCreatorId(creator.getId())
                 .stream()
                 .map(project -> {
-                    int backersCount = contributionRepository.countByProjectIdAndStatus(project.getId(), ContributionStatus.COMPLETED);
+                    int backersCount = contributionRepository.countByProjectIdAndStatus(project.getId(),
+                            ContributionStatus.COMPLETED);
                     return ProjectListResponse.fromEntity(project, backersCount);
                 })
                 .toList();
@@ -177,7 +182,8 @@ public class ProjectService {
         }
 
         // Error 409: Conflict
-        int hasContributions = contributionRepository.countByProjectIdAndStatus(projectId, ContributionStatus.COMPLETED);
+        int hasContributions = contributionRepository.countByProjectIdAndStatus(projectId,
+                ContributionStatus.COMPLETED);
         if (hasContributions > 0) {
             throw new DeleteConflictException("No se puede eliminar un proyecto con contribuciones");
         }
@@ -243,7 +249,7 @@ public class ProjectService {
             } catch (Exception e) {
                 throw new RiskScoreCalculationException(
                         "No fue posible recalcular el riesgo del proyecto: " + e.getMessage(),
-                    new ArrayList<>());
+                        new ArrayList<>());
             }
         }
 

@@ -19,10 +19,21 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
                                           // de ejecutarla
     @Query("UPDATE Project p SET p.currentAmount = p.currentAmount + :amount WHERE p.id = :projectId")
     int incrementCurrentAmount(@Param("projectId") UUID projectId, @Param("amount") BigDecimal amount);
+
     // el retorno de int indica la cantidad de filas modificadas
     List<Project> findByCreatorId(Long creatorId);
 
     boolean existsByCreatorIdAndStatus(Long creatorId, ProjectStatus status);
 
     List<Project> findByStatus(ProjectStatus status);
+
+    @Query("""
+                SELECT p, COUNT(c.id)
+                FROM Project p
+                LEFT JOIN Contribution c ON p.id = c.project.id AND c.status = com.crowdfunding.backend.entity.ContributionStatus.COMPLETED
+                WHERE p.status = com.crowdfunding.backend.entity.ProjectStatus.ACTIVE
+                GROUP BY p.id
+                ORDER BY p.createdAt DESC
+            """)
+    List<Object[]> findActiveProjectsWithBackersCount();
 }
