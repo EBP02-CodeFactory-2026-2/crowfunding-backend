@@ -27,7 +27,7 @@ public record ProjectListResponse(
             project.getCurrentAmount(),
             project.getImageUrl(),
             project.getDeadline(),
-            project.getStatus() != null ? project.getStatus().toString() : null,
+            project.getStatus().name(),
             project.getRiskTag(),
             backersCount != null ? backersCount : 0
         );

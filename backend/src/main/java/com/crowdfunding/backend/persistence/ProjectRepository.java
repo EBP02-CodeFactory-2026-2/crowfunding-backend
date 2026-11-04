@@ -1,6 +1,7 @@
 package com.crowdfunding.backend.persistence;
 
 import com.crowdfunding.backend.entity.Project;
+import com.crowdfunding.backend.entity.ProjectStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -21,7 +22,7 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     // el retorno de int indica la cantidad de filas modificadas
     List<Project> findByCreatorId(Long creatorId);
 
-    boolean existsByCreatorIdAndStatus(Long creatorId, String status);
+    boolean existsByCreatorIdAndStatus(Long creatorId, ProjectStatus status);
 
-    List<Project> findByStatus(String status);
+    List<Project> findByStatus(ProjectStatus status);
 }

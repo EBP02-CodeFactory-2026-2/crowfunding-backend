@@ -9,6 +9,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.crowdfunding.backend.entity.Project;
+import com.crowdfunding.backend.entity.ProjectStatus;
 import com.crowdfunding.backend.entity.User;
 import com.crowdfunding.backend.exception.RiskScoreCalculationException;
 import com.crowdfunding.backend.interfaces.ScoringEngine;
@@ -54,7 +55,7 @@ public class RiskScoringService implements ScoringEngine {
     }
 
     @Override
-    public int calculateRiskScore(Project project, User creator){
+    public int calculateRiskScore(Project project, User creator) {
         LocalDateTime instantTime = LocalDateTime.now();
 
         checkConsistency(project, creator, instantTime);
@@ -109,10 +110,10 @@ public class RiskScoringService implements ScoringEngine {
 
     private int historyPoints(User creator) {
         int points = 0;
-        if (repository.existsByCreatorIdAndStatus(creator.getId(), STATUS_FUNDED)) {
+        if (repository.existsByCreatorIdAndStatus(creator.getId(), ProjectStatus.FUNDED)) {
             points += FUNDED_HISTORY_POINTS;
         }
-        if (repository.existsByCreatorIdAndStatus(creator.getId(), STATUS_FAILED)) {
+        if (repository.existsByCreatorIdAndStatus(creator.getId(), ProjectStatus.FAILED)) {
             points += FAILED_HISTORY_POINTS;
         }
         return points;

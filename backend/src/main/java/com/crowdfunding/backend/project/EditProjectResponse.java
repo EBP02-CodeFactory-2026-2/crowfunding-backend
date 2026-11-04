@@ -1,6 +1,7 @@
 package com.crowdfunding.backend.project;
 
 import com.crowdfunding.backend.entity.Project;
+import com.crowdfunding.backend.entity.ProjectStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,7 +27,7 @@ public record EditProjectResponse(
                 project.getFundingGoal(),
                 project.getCurrentAmount() != null ? project.getCurrentAmount() : BigDecimal.ZERO,
                 project.getDeadline(),
-                project.getStatus() != null ? project.getStatus().toString() : "DRAFT",
+                project.getStatus().name(),
                 project.getRiskTag(),
                 project.getUpdatedAt()
         );

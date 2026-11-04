@@ -13,8 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.crowdfunding.backend.contribution.ContributionRequest;
 import com.crowdfunding.backend.contribution.ContributionResponse;
 import com.crowdfunding.backend.entity.Contribution;
+import com.crowdfunding.backend.entity.ContributionStatus;
 import com.crowdfunding.backend.entity.Project;
+import com.crowdfunding.backend.entity.ProjectStatus;
 import com.crowdfunding.backend.entity.Transaction;
+import com.crowdfunding.backend.entity.TransactionStatus;
 import com.crowdfunding.backend.exception.ProjectLockedException;
 import com.crowdfunding.backend.exception.ReplayAttackException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
@@ -42,7 +45,7 @@ public class ContributionService {
 
         Project project = projectRepository.findById(projectId).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
 
-        if (!"ACTIVE".equals(project.getStatus())){
+        if (!ProjectStatus.ACTIVE.equals(project.getStatus())){
             throw new ProjectLockedException("El proyecto no se encuentra en estado activo y no puede recibir aportes");
         }
 
@@ -55,7 +58,7 @@ public class ContributionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario autenticado no encontrado: " + userEmail)));
         contribution.setProject(project);
         contribution.setAmount(request.amount());
-        contribution.setStatus("COMPLETED"); // el mock de pasarela siempre será exitoso en este sprint
+        contribution.setStatus(ContributionStatus.COMPLETED); // el mock de pasarela siempre será exitoso en este sprint
 
         contributionRepository.save(contribution);
 
@@ -64,7 +67,7 @@ public class ContributionService {
         transaction.setReferenceCode("MOCK-"+ UUID.randomUUID());
         transaction.setAmount(request.amount());
         transaction.setPaymentMethod(request.paymentMethod());
-        transaction.setStatus("SUCCESS"); 
+        transaction.setStatus(TransactionStatus.SUCCESS); 
         transaction.setProcessedAt(LocalDateTime.now());
         transaction.setNonce(request.nonce());
         transactionRepository.save(transaction);

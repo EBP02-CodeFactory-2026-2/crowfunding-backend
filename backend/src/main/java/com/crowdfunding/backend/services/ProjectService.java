@@ -1,7 +1,8 @@
 package com.crowdfunding.backend.services;
 
-import com.crowdfunding.backend.entity.Contribution;
+import com.crowdfunding.backend.entity.ContributionStatus;
 import com.crowdfunding.backend.entity.Project;
+import com.crowdfunding.backend.entity.ProjectStatus;
 import com.crowdfunding.backend.entity.User;
 import com.crowdfunding.backend.exception.DeleteConflictException;
 import com.crowdfunding.backend.exception.MissingProjectFieldsException;
@@ -30,8 +31,6 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final ContributionRepository contributionRepository;
     private final ScoringEngine scoringEngine;
-    private static final String STATUS_DRAFT = "DRAFT";
-    private static final String STATUS_ACTIVE = "ACTIVE";
 
     public ProjectService(ProjectRepository projectRepository,
             UserRepository userRepository,
@@ -45,7 +44,7 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectListResponse> getAllProjects() {
-        return projectRepository.findByStatus(STATUS_ACTIVE)
+        return projectRepository.findByStatus(ProjectStatus.ACTIVE)
                 .stream()
                 .map(ProjectListResponse::fromEntity)
                 .toList();
@@ -88,7 +87,7 @@ public class ProjectService {
         return projectRepository.findByCreatorId(creator.getId())
                 .stream()
                 .map(project -> {
-                    int backersCount = contributionRepository.countByProjectIdAndStatus(project.getId(), "COMPLETED");
+                    int backersCount = contributionRepository.countByProjectIdAndStatus(project.getId(), ContributionStatus.COMPLETED);
                     return ProjectListResponse.fromEntity(project, backersCount);
                 })
                 .toList();
@@ -117,7 +116,7 @@ public class ProjectService {
         }
 
         // Error 409: solo se puede publicar desde DRAFT
-        if (!STATUS_DRAFT.equals(project.getStatus())) {
+        if (!ProjectStatus.DRAFT.equals(project.getStatus())) {
             throw new ProjectLockedException("El proyecto ya fue publicado y no está en estado borrador");
         }
 
@@ -147,15 +146,15 @@ public class ProjectService {
 
         // Solo ahora se modifica el proyecto
         project.setRiskScore(riskScore);
-        project.setStatus(STATUS_ACTIVE);
+        project.setStatus(ProjectStatus.ACTIVE);
         Project saved = projectRepository.saveAndFlush(project);
 
         return new PublishProjectResponse(
                 saved.getId(),
                 saved.getTitle(),
-                saved.getStatus(),
+                saved.getStatus().toString(),
                 saved.getRiskScore(),
-                project.getRiskTag(),
+                saved.getRiskTag(),
                 saved.getFundingGoal(),
                 saved.getDeadline(),
                 saved.getUpdatedAt());
@@ -178,12 +177,12 @@ public class ProjectService {
         }
 
         // Error 409: Conflict
-        int hasContributions = contributionRepository.countByProjectIdAndStatus(projectId, "COMPLETED");
+        int hasContributions = contributionRepository.countByProjectIdAndStatus(projectId, ContributionStatus.COMPLETED);
         if (hasContributions > 0) {
             throw new DeleteConflictException("No se puede eliminar un proyecto con contribuciones");
         }
 
-        project.setStatus("DELETED");
+        project.setStatus(ProjectStatus.DELETED);
         projectRepository.save(project);
 
     }
@@ -204,9 +203,9 @@ public class ProjectService {
             throw new ProjectAccessDeniedException("No tienes permiso para publicar este proyecto");
         }
 
-        boolean isActive = STATUS_ACTIVE.equals(project.getStatus());
+        boolean isActive = ProjectStatus.ACTIVE.equals(project.getStatus());
 
-        if (!STATUS_DRAFT.equals(project.getStatus())) {
+        if (!ProjectStatus.DRAFT.equals(project.getStatus())) {
             if (request.fundingGoal() == null || request.deadline() == null) {
                 throw new ProjectLockedException(
                         "La meta y el plazo no pueden modificarse una vez el proyecto está activo");

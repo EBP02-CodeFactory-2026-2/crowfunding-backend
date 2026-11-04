@@ -31,7 +31,7 @@ public record ProjectDetailResponse(
             project.getCurrentAmount(),
             project.getImageUrl(),
             project.getDeadline(),
-            project.getStatus(),
+            project.getStatus().name(),
             project.getCreator() != null ? 
                 new CreatorDto(project.getCreator().getId(), project.getCreator().getFullName()) : null,
             project.getCreatedAt(),

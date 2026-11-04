@@ -50,7 +50,8 @@ public class Project {
     private Integer riskScore;
 
     @Column(nullable = false)
-    private String status = "DRAFT"; // DRAFT, ACTIVE, FUNDED, FAILED
+    @Enumerated(EnumType.STRING)
+    private ProjectStatus status = ProjectStatus.DRAFT; // DRAFT, ACTIVE, FUNDED, FAILED
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
