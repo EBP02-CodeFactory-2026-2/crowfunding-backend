@@ -43,13 +43,35 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProjectListResponse> getAllProjects() {
-        return projectRepository.findActiveProjectsWithBackersCount()
+    public List<ProjectListResponse> getProjects(List<String> riskTags) {
+        if (riskTags == null || riskTags.isEmpty()) {
+            return projectRepository.findActiveProjectsByRiskTags(true, false, false, false)
+                    .stream()
+                    .map(project -> {
+                        int backersCount = contributionRepository.countByProjectIdAndStatus(project.getId(),
+                                ContributionStatus.COMPLETED);
+                        return ProjectListResponse.fromEntity(project, backersCount);
+                    })
+                    .toList();
+        }
+
+        List<String> normalizedTags = riskTags.stream()
+                .map(String::trim)
+                .map(String::toUpperCase)
+                .toList();
+
+        boolean checkAlto = normalizedTags.contains("ALTO") || normalizedTags.contains("RIESGO ALTO");
+        boolean checkMedio = normalizedTags.contains("MEDIO") || normalizedTags.contains("RIESGO MEDIO");
+        boolean checkBajo = normalizedTags.contains("BAJO") || normalizedTags.contains("RIESGO BAJO");
+
+        boolean filterAll = !checkAlto && !checkMedio && !checkBajo;
+
+        return projectRepository.findActiveProjectsByRiskTags(filterAll, checkAlto, checkMedio, checkBajo)
                 .stream()
-                .map(row -> {
-                    Project p = (Project) row[0];
-                    Long count = (Long) row[1];
-                    return ProjectListResponse.fromEntity(p, count.intValue());
+                .map(project -> {
+                    int backersCount = contributionRepository.countByProjectIdAndStatus(project.getId(),
+                            ContributionStatus.COMPLETED);
+                    return ProjectListResponse.fromEntity(project, backersCount);
                 })
                 .toList();
     }
@@ -114,18 +136,15 @@ public class ProjectService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
 
-        // Error 403: el usuario autenticado no es el dueño
         User creator = project.getCreator();
         if (!creator.getId().equals(userId)) {
             throw new ProjectAccessDeniedException("No tienes permiso para publicar este proyecto");
         }
 
-        // Error 409: solo se puede publicar desde DRAFT
         if (!ProjectStatus.DRAFT.equals(project.getStatus())) {
             throw new ProjectLockedException("El proyecto ya fue publicado y no está en estado borrador");
         }
 
-        // Error 400: campos obligatorios (CA1) acumulando todos los faltantes
         List<String> missing = new ArrayList<>();
         if (project.getTitle() == null || project.getTitle().isBlank()) {
             missing.add("title");
@@ -145,11 +164,8 @@ public class ProjectService {
                     "Faltan campos obligatorios para publicar el proyecto", missing);
         }
 
-        // Error 422: si falla, se lanza RiskScoreCalculationException y el proyecto no
-        // se toca
         int riskScore = scoringEngine.calculateRiskScore(project, creator);
 
-        // Solo ahora se modifica el proyecto
         project.setRiskScore(riskScore);
         project.setStatus(ProjectStatus.ACTIVE);
         Project saved = projectRepository.saveAndFlush(project);
@@ -175,13 +191,11 @@ public class ProjectService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
 
-        // Error 403: el usuario autenticado no es el dueño
         User creator = project.getCreator();
         if (!creator.getId().equals(user.getId())) {
             throw new ProjectAccessDeniedException("No tienes permiso para eliminar este proyecto");
         }
 
-        // Error 409: Conflict
         int hasContributions = contributionRepository.countByProjectIdAndStatus(projectId,
                 ContributionStatus.COMPLETED);
         if (hasContributions > 0) {
@@ -190,7 +204,6 @@ public class ProjectService {
 
         project.setStatus(ProjectStatus.DELETED);
         projectRepository.save(project);
-
     }
 
     public EditProjectResponse editProject(UUID projectId, EditProjectRequest request) {
@@ -203,7 +216,6 @@ public class ProjectService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
 
-        // Error 403: el usuario autenticado no es el dueño
         User creator = project.getCreator();
         if (!creator.getId().equals(user.getId())) {
             throw new ProjectAccessDeniedException("No tienes permiso para publicar este proyecto");
@@ -215,12 +227,9 @@ public class ProjectService {
             if (request.fundingGoal() == null || request.deadline() == null) {
                 throw new ProjectLockedException(
                         "La meta y el plazo no pueden modificarse una vez el proyecto está activo");
-
             }
-
         }
 
-        // Aplicar solo los campos enviados
         boolean contentChanged = false;
 
         if (request.title() != null) {
@@ -235,14 +244,13 @@ public class ProjectService {
             project.setImageUrl(request.imageUrl());
             contentChanged = true;
         }
-        if (request.fundingGoal() != null) { // solo llega aquí si es DRAFT
+        if (request.fundingGoal() != null) {
             project.setFundingGoal(request.fundingGoal());
         }
-        if (request.deadline() != null) { // solo llega aquí si es DRAFT
+        if (request.deadline() != null) {
             project.setDeadline(request.deadline());
         }
 
-        // CA5: recalcular riesgo si se editó contenido en un proyecto activo
         if (isActive && contentChanged) {
             try {
                 project.setRiskScore(scoringEngine.calculateRiskScore(project, creator));
@@ -256,5 +264,4 @@ public class ProjectService {
         Project saved = projectRepository.saveAndFlush(project);
         return EditProjectResponse.fromEntity(saved);
     }
-
 }
