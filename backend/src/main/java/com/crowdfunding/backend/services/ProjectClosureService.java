@@ -3,6 +3,7 @@ package com.crowdfunding.backend.services;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,6 +77,9 @@ public class ProjectClosureService {
             .findByProjectIdAndStatus(project.getId(), ContributionStatus.COMPLETED);
         
         for (Contribution contribution : completedContributions) {
+            if (contribution.getStatus() == ContributionStatus.REFUNDED) {
+                continue;
+            }
             contribution.setStatus(ContributionStatus.REFUNDED);
             contributionRepository.save(contribution);
             // TODO: generar notificación de reembolso al backer (HU-4.1.4 CA2)
@@ -97,5 +101,10 @@ public class ProjectClosureService {
             }
         }
         return closed;
+    }
+
+    @Scheduled(fixedRate = 300000) // se ejecuta cada 5 minutos
+    public void scheduledProjectClosure(){
+        processExpiredProjects();
     }
 }
