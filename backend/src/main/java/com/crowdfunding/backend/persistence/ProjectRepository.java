@@ -41,4 +41,19 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
                 ORDER BY p.createdAt DESC
             """)
     List<Object[]> findActiveProjectsWithBackersCount();
+
+    @Query("""
+        SELECT p FROM Project p 
+        WHERE p.status = com.crowdfunding.backend.entity.ProjectStatus.ACTIVE 
+        AND (:filterAll = true OR 
+             (:checkAlto = true AND p.riskScore <= 1) OR 
+             (:checkMedio = true AND p.riskScore BETWEEN 2 AND 5) OR 
+             (:checkBajo = true AND p.riskScore BETWEEN 6 AND 9))
+    """)
+    List<Project> findActiveProjectsByRiskTags(
+        @Param("filterAll") boolean filterAll,
+        @Param("checkAlto") boolean checkAlto,
+        @Param("checkMedio") boolean checkMedio,
+        @Param("checkBajo") boolean checkBajo
+    );
 }

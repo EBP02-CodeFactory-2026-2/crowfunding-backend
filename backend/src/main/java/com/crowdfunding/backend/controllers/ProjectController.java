@@ -29,28 +29,30 @@ public class ProjectController {
         this.projectService = projectService;
     }
 
-    // GET /api/projects - Obtener todos los proyectos
+    // GET /api/v1/projects - Listar y filtrar proyectos activos por etiqueta de riesgo (HU-1.3.2, HU-2.3.5)
     @GetMapping
-    public ResponseEntity<List<ProjectListResponse>> getAllProjects() {
-        List<ProjectListResponse> projects = projectService.getAllProjects();
+    public ResponseEntity<List<ProjectListResponse>> getAllProjects(
+            @RequestParam(required = false) List<String> riskTag
+    ) {
+        List<ProjectListResponse> projects = projectService.getProjects(riskTag);
         return ResponseEntity.ok(projects);
     }
 
-    // GET /api/projects/me - Obtener los proyectos del usuario autenticado
+    // GET /api/v1/projects/me - Obtener los proyectos del usuario autenticado (HU-1.1.6)
     @GetMapping("/me")
     public ResponseEntity<List<ProjectListResponse>> getMyProjects() {
         List<ProjectListResponse> myProjects = projectService.getMyProjects();
         return ResponseEntity.ok(myProjects);
     }
 
-    // GET /api/projects/{id} - Obtener un proyecto específico por ID
+    // GET /api/v1/projects/{id} - Obtener un proyecto específico por ID
     @GetMapping("/{id}")
     public ResponseEntity<ProjectDetailResponse> getProjectById(@PathVariable UUID id) {
         ProjectDetailResponse project = projectService.getProjectById(id);
         return ResponseEntity.ok(project);
     }
 
-    // POST /api/projects - Crear un nuevo proyecto
+    // POST /api/v1/projects - Crear un nuevo proyecto
     @PostMapping
     public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody CreateProjectRequest request) {
         ProjectResponse createdProject = projectService.createProject(request);
@@ -64,15 +66,16 @@ public class ProjectController {
         return ResponseEntity.ok(response);
     }
 
+    // DELETE /api/v1/projects/{id} - Eliminar un proyecto sin aportes
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProject(@PathVariable UUID id){
+    public ResponseEntity<Void> deleteProject(@PathVariable UUID id) {
         projectService.deleteProject(id);
         return ResponseEntity.noContent().build();
-        
     }
 
+    // PUT /api/v1/projects/{id} - Editar un proyecto
     @PutMapping("/{id}")
-    public ResponseEntity<EditProjectResponse> editProject(@PathVariable UUID id, @Valid @RequestBody EditProjectRequest request){
+    public ResponseEntity<EditProjectResponse> editProject(@PathVariable UUID id, @Valid @RequestBody EditProjectRequest request) {
         EditProjectResponse response = projectService.editProject(id, request);
         return ResponseEntity.ok(response);
     }
