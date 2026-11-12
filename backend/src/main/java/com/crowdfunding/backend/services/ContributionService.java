@@ -19,7 +19,7 @@ import com.crowdfunding.backend.entity.ProjectStatus;
 import com.crowdfunding.backend.entity.Transaction;
 import com.crowdfunding.backend.entity.TransactionStatus;
 import com.crowdfunding.backend.exception.InvalidContributionAmountException;
-import com.crowdfunding.backend.exception.ProjectLockedException;
+import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ReplayAttackException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
 import com.crowdfunding.backend.persistence.ContributionRepository;
@@ -46,16 +46,16 @@ public class ContributionService {
 
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
+                
+        if (!ProjectStatus.ACTIVE.equals(project.getStatus())) {
+            throw new ProjectAccessDeniedException("El proyecto no se encuentra en estado activo y no puede recibir aportes");
+        }
 
         // Validar advertencia de riesgo (HU-2.2.3)
         if ("Riesgo Alto".equals(project.getRiskTag())
                 && !Boolean.TRUE.equals(request.riskWarningAccepted())) {
             throw new InvalidContributionAmountException(
                     "Debes confirmar la advertencia de riesgo antes de aportar");
-        }
-
-        if (!ProjectStatus.ACTIVE.equals(project.getStatus())) {
-            throw new ProjectLockedException("El proyecto no se encuentra en estado activo y no puede recibir aportes");
         }
 
         if (transactionRepository.existsByNonce(request.nonce())) {
