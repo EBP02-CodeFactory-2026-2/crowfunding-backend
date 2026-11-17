@@ -74,15 +74,31 @@ public class NotificationService {
 
     public void notifyProjectFailed(User recipient, Project project) {
         if (recipient == null || recipient.getId() == null
-                || project == null || project.getId() == null || project.getTitle() == null) {
+                || project == null
+                || project.getId() == null
+                || project.getTitle() == null
+                || project.getCurrentAmount() == null
+                || project.getFundingGoal() == null) {
             throw new IllegalArgumentException("El usuario y el proyecto deben estar registrados.");
+        }
+
+        // Valida que la notificación no exista ya para evitar duplicados
+        if (notificationRepository.existsByUserIdAndTypeAndProjectId(
+                recipient.getId(), PROJECT_FAILED, project.getId())) {
+            return;
         }
 
         Notification notification = new Notification();
         notification.setUser(recipient);
         notification.setProject(project);
         notification.setType(PROJECT_FAILED);
-        notification.setMessage(String.format("El proyecto %s no alcanzó su meta.", project.getTitle()));
+        notification.setMessage(String.format(
+                "El proyecto %s caducó. Recaudó $%s de una meta de $%s. "
+                        + "Los aportes serán reembolsados y los patrocinadores pueden consultar su estado "
+                        + "en el historial de aportes.",
+                project.getTitle(),
+                NumberFormat.getNumberInstance(Locale.US).format(project.getCurrentAmount()),
+                NumberFormat.getNumberInstance(Locale.US).format(project.getFundingGoal())));
         notificationRepository.save(notification);
     }
 
