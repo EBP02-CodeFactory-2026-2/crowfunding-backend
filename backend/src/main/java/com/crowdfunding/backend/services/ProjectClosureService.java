@@ -15,7 +15,7 @@ import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.entity.ProjectStatus;
 import com.crowdfunding.backend.entity.User;
 import com.crowdfunding.backend.persistence.ContributionRepository;
-import com.crowdfunding.backend.persistence.NotificationRepository;
+
 import com.crowdfunding.backend.persistence.ProjectRepository;
 
 /**
@@ -57,19 +57,23 @@ public class ProjectClosureService {
             project.setStatus(ProjectStatus.FUNDED);
             projectRepository.save(project);
             // HECHO: generar notificaciones (HU-4.1.1)
+            List<Contribution> completedContributions = contributionRepository.findByProjectIdAndStatus(
+                    project.getId(), ContributionStatus.COMPLETED);
+            long backerCount = completedContributions.stream()
+                    .map(contribution -> contribution.getBacker().getId())
+                    .distinct()
+                    .count();
+
             User creator = project.getCreator();
             Set<Long> notifiedUserIds = new HashSet<>();
 
-            notificationService.notifyProjectFunded(creator, project);
+            notificationService.notifyProjectFunded(creator, project, backerCount, now);
             notifiedUserIds.add(creator.getId());
-
-            List<Contribution> completedContributions = contributionRepository.findByProjectIdAndStatus(
-                    project.getId(), ContributionStatus.COMPLETED);
 
             for (Contribution contribution : completedContributions) {
                 User backer = contribution.getBacker();
                 if (notifiedUserIds.add(backer.getId())) {
-                    notificationService.notifyProjectFunded(backer, project);
+                    notificationService.notifyProjectFunded(backer, project, backerCount, now);
                 }
             }
             return true;
@@ -81,19 +85,23 @@ public class ProjectClosureService {
             projectRepository.save(project);
             processRefunds(project); // HU-4.1.4
             // HECHO: generar notificaciones (HU-4.1.2)
+            List<Contribution> refundedContributions = contributionRepository.findByProjectIdAndStatus(
+                    project.getId(), ContributionStatus.REFUNDED);
+            long backerCount = refundedContributions.stream()
+                    .map(contribution -> contribution.getBacker().getId())
+                    .distinct()
+                    .count();
+
             User creator = project.getCreator();
             Set<Long> notifiedUserIds = new HashSet<>();
 
-            notificationService.notifyProjectFailed(creator, project);
+            notificationService.notifyProjectFailed(creator, project, backerCount, now);
             notifiedUserIds.add(creator.getId());
-
-            List<Contribution> refundedContributions = contributionRepository.findByProjectIdAndStatus(
-                    project.getId(), ContributionStatus.REFUNDED);
 
             for (Contribution contribution : refundedContributions) {
                 User backer = contribution.getBacker();
                 if (notifiedUserIds.add(backer.getId())) {
-                    notificationService.notifyProjectFailed(backer, project);
+                    notificationService.notifyProjectFailed(backer, project, backerCount, now);
                 }
             }
             return true;
