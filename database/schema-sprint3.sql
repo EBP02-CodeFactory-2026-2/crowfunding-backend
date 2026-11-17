@@ -6,6 +6,7 @@
 CREATE TABLE notifications (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, -- <-- CAMPO AGREGADO
     type VARCHAR(50) NOT NULL, -- 'PROJECT_FUNDED', 'PROJECT_FAILED', 'REFUND_PROCESSED'
     message TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
@@ -13,6 +14,7 @@ CREATE TABLE notifications (
 );
 
 -- 2. Índices para mejorar rendimiento de consultas del Sprint 3
+
 -- Acelera HU-2.2.2 (Mis aportes)
 CREATE INDEX IF NOT EXISTS idx_contributions_backer_status 
     ON contributions(user_id, status);
@@ -28,3 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
 -- Acelera HU-4.1.4 (Aportes de un proyecto para reembolsar)
 CREATE INDEX IF NOT EXISTS idx_contributions_project_status 
     ON contributions(project_id, status);
+
+-- Acelera la validación de idempotencia en NotificationService (existsByUserIdAndTypeAndProjectId)
+CREATE INDEX IF NOT EXISTS idx_notifications_user_type_project 
+    ON notifications(user_id, type, project_id);
