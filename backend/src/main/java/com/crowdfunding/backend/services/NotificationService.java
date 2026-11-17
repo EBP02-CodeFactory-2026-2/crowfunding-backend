@@ -19,36 +19,50 @@ import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
 import com.crowdfunding.backend.notification.NotificationResponse;
 import com.crowdfunding.backend.persistence.NotificationRepository;
+import com.crowdfunding.backend.persistence.UserRepository;
 
 @Service
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
     private final static String PROJECT_FUNDED = "PROJECT_FUNDED";
     private final static String PROJECT_FAILED = "PROJECT_FAILED";
     private final static String REFUND_PROCESSED = "REFUND_PROCESSED";
 
-    public NotificationService(NotificationRepository notificationRepository) {
+    public NotificationService(
+            NotificationRepository notificationRepository,
+            UserRepository userRepository) {
         this.notificationRepository = notificationRepository;
+        this.userRepository = userRepository;
     }
 
-    public List<NotificationResponse> getMyNotifications(Long userId) {
-        if (userId == null) {
-            throw new IllegalArgumentException("El ID de usuario no puede ser nulo.");
+    public List<NotificationResponse> getMyNotifications(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("El email del usuario no puede ser nulo ni vacío.");
         }
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail));
+
+        return notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
                 .map(NotificationResponse::fromEntity).toList();
     }
 
-    public void markAsRead(UUID notificationId, Long userId) {
-        if (notificationId == null || userId == null) {
-            throw new IllegalArgumentException("El ID de usuario y/o de la notificación no puede ser nulo.");
+    public void markAsRead(UUID notificationId, String userEmail) {
+        if (notificationId == null || userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("El ID de notificación y el email de usuario son obligatorios.");
         }
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail));
 
         Notification result = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new ResourceNotFoundException("La notificación no fue encontrada."));
 
-        if (!result.getUser().getId().equals(userId)) {
+        if (!result.getUser().getId().equals(user.getId())) {
             throw new ProjectAccessDeniedException("Esta notificación pertenece a otro usuario.");
         }
 
