@@ -1,6 +1,10 @@
 package com.crowdfunding.backend.services;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -53,10 +57,11 @@ public class NotificationService {
 
     }
 
-    public void notifyProjectFunded(User recipient, Project project) {
+    public void notifyProjectFunded(User recipient, Project project, long backerCount, LocalDateTime closedAt) {
         if (recipient == null || recipient.getId() == null
                 || project == null || project.getId() == null
-                || project.getTitle() == null || project.getCurrentAmount() == null) {
+                || project.getTitle() == null || project.getCurrentAmount() == null
+                || project.getFundingGoal() == null || backerCount < 0 || closedAt == null) {
             throw new IllegalArgumentException("El usuario y el proyecto deben estar registrados.");
         }
         
@@ -71,20 +76,27 @@ public class NotificationService {
         notification.setProject(project);
         notification.setType(PROJECT_FUNDED);
         notification.setMessage(String.format(
-                "¡El proyecto %s finalizó con éxito! Monto final recaudado: $%s",
+                "¡El proyecto %s finalizó con éxito! Monto final recaudado: $%s. "
+                        + "Meta: $%s. Patrocinadores: %d. Fecha de cierre: %s.",
                 project.getTitle(),
-                NumberFormat.getNumberInstance(Locale.US).format(project.getCurrentAmount())));
+                NumberFormat.getNumberInstance(Locale.US).format(project.getCurrentAmount()),
+                NumberFormat.getNumberInstance(Locale.US).format(project.getFundingGoal()),
+                backerCount,
+                DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(closedAt)));
         notificationRepository.save(notification);
 
     }
 
-    public void notifyProjectFailed(User recipient, Project project) {
+    public void notifyProjectFailed(User recipient, Project project, long backerCount, LocalDateTime closedAt) {
         if (recipient == null || recipient.getId() == null
                 || project == null
                 || project.getId() == null
                 || project.getTitle() == null
                 || project.getCurrentAmount() == null
-                || project.getFundingGoal() == null) {
+                || project.getFundingGoal() == null
+                || project.getFundingGoal().signum() <= 0
+                || backerCount < 0
+                || closedAt == null) {
             throw new IllegalArgumentException("El usuario y el proyecto deben estar registrados.");
         }
 
@@ -99,12 +111,18 @@ public class NotificationService {
         notification.setProject(project);
         notification.setType(PROJECT_FAILED);
         notification.setMessage(String.format(
-                "El proyecto %s caducó. Recaudó $%s de una meta de $%s. "
+                "El proyecto %s caducó. Recaudó $%s de una meta de $%s (%s%% alcanzado). "
+                        + "Patrocinadores: %d. Fecha de cierre: %s. "
                         + "Los aportes serán reembolsados y los patrocinadores pueden consultar su estado "
                         + "en el historial de aportes.",
                 project.getTitle(),
                 NumberFormat.getNumberInstance(Locale.US).format(project.getCurrentAmount()),
-                NumberFormat.getNumberInstance(Locale.US).format(project.getFundingGoal())));
+                NumberFormat.getNumberInstance(Locale.US).format(project.getFundingGoal()),
+                project.getCurrentAmount().multiply(BigDecimal.valueOf(100))
+                        .divide(project.getFundingGoal(), 2, RoundingMode.HALF_UP)
+                        .stripTrailingZeros().toPlainString(),
+                backerCount,
+                DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(closedAt)));
         notificationRepository.save(notification);
     }
 
