@@ -59,6 +59,12 @@ public class NotificationService {
                 || project.getTitle() == null || project.getCurrentAmount() == null) {
             throw new IllegalArgumentException("El usuario y el proyecto deben estar registrados.");
         }
+        
+        // Valida que la notificación no exista ya para evitar duplicados
+        if (notificationRepository.existsByUserIdAndTypeAndProjectId(
+                recipient.getId(), PROJECT_FUNDED, project.getId())) {
+            return;
+        }
 
         Notification notification = new Notification();
         notification.setUser(recipient);
