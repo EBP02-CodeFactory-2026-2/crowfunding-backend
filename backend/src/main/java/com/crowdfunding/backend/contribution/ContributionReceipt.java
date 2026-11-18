@@ -32,10 +32,17 @@ public record ContributionReceipt(
             contribution.getStatus().name(),
             new TransactionDTO(
                 transaction.getReferenceCode(),
-                transaction.getPaymentMethod(),
+                maskPaymentMethod(transaction),
                 transaction.getProcessedAt()
             ),
             LocalDateTime.now()
         );
+    }
+
+    // Últimos 4 dígitos simulados a partir del id de la transacción: parecen aleatorios,
+    // pero son los mismos cada vez que se consulta el recibo de esa transacción
+    private static String maskPaymentMethod(Transaction transaction) {
+        int lastFour = Math.floorMod(transaction.getId().hashCode(), 10_000);
+        return transaction.getPaymentMethod() + " *** " + String.format("%04d", lastFour);
     }
 }

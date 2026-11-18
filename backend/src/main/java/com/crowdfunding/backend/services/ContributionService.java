@@ -29,6 +29,7 @@ import com.crowdfunding.backend.exception.ResourceNotFoundException;
 import com.crowdfunding.backend.exception.MethodArgumentNotValidException;
 import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.persistence.ProjectRepository;
+import com.crowdfunding.backend.contribution.ContributionReceipt;
 
 @Service
 public class ContributionService {
@@ -122,5 +123,31 @@ public class ContributionService {
         List<ContributionListResponse> response = contributions.stream().map(ContributionListResponse::fromEntity)
                 .toList();
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public ContributionReceipt getReceipt(UUID contributionId) {
+        User user = getAuthenticatedUser();
+
+        // Protección IDOR: si el aporte no es del usuario, responde igual que si no
+        // existiera
+        Contribution contribution = contributionRepository
+                .findByIdAndBackerId(contributionId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Aporte no encontrado con el ID: " + contributionId));
+
+        Transaction transaction = transactionRepository
+                .findByContributionId(contribution.getId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "El aporte " + contributionId + " no tiene una transacción asociada"));
+
+        return ContributionReceipt.fromEntity(contribution, transaction, contribution.getProject());
+    }
+
+    private User getAuthenticatedUser() {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail));
     }
 }
