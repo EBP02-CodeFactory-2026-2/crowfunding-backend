@@ -48,9 +48,10 @@ public class ContributionService {
 
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
-                
+
         if (!ProjectStatus.ACTIVE.equals(project.getStatus())) {
-            throw new ProjectAccessDeniedException("El proyecto no se encuentra en estado activo y no puede recibir aportes");
+            throw new ProjectAccessDeniedException(
+                    "El proyecto no se encuentra en estado activo y no puede recibir aportes");
         }
 
         // Validar advertencia de riesgo (HU-2.2.3)
@@ -91,16 +92,32 @@ public class ContributionService {
 
         return ContributionResponse.fromEntity(contribution, transaction, project);
     }
+
     @Transactional(readOnly = true)
-    public List<ContributionListResponse> contributionHistory(){
-        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();  
+    public List<ContributionListResponse> contributionHistory(String status) {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Usuario autenticado no encontrado: " + userEmail)); 
-        List<Contribution> contributions = contributionRepository.findByBackerIdOrderByCreatedAtDesc(user.getId());
-        
-        List<ContributionListResponse> response = contributions.stream().map(ContributionListResponse::fromEntity).toList();
+                        "Usuario autenticado no encontrado: " + userEmail));
+
+        List<Contribution> contributions;
+
+        if (status == null || status.isBlank()) {
+            contributions = contributionRepository.findByBackerIdOrderByCreatedAtDesc(user.getId());
+        } else {
+            ContributionStatus statusEnum;
+            try {
+                statusEnum = ContributionStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Estado inválido: " + status
+                        + ". Valores permitidos: " + Arrays.toString(ContributionStatus.values()));
+            }
+
+            contributions = contributionRepository
+                    .findByBackerIdAndStatusOrderByCreatedAtDesc(user.getId(), statusEnum);
+        }
+        List<ContributionListResponse> response = contributions.stream().map(ContributionListResponse::fromEntity)
+                .toList();
         return response;
     }
 }
-

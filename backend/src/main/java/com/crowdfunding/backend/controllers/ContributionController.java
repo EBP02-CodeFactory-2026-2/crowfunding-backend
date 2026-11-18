@@ -32,8 +32,8 @@ public class ContributionController {
     }
 
     @GetMapping("/contributions/me")
-    public ResponseEntity<List<ContributionListResponse>> contributionHistory(){
-        List<ContributionListResponse> response = contributionService.contributionHistory();
-        return new ResponseEntity.ok(response);
+    public ResponseEntity<List<ContributionListResponse>> contributionHistory(@RequestParam(required = false) String status){
+        List<ContributionListResponse> response = contributionService.contributionHistory(status);
+        return ResponseEntity.ok(response);
     }
 }
