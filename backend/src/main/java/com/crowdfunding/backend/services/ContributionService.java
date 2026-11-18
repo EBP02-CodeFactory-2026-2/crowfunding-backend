@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.crowdfunding.backend.contribution.ContributionListResponse;
 import com.crowdfunding.backend.contribution.ContributionRequest;
 import com.crowdfunding.backend.contribution.ContributionResponse;
 import com.crowdfunding.backend.entity.Contribution;
@@ -18,6 +19,7 @@ import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.entity.ProjectStatus;
 import com.crowdfunding.backend.entity.Transaction;
 import com.crowdfunding.backend.entity.TransactionStatus;
+import com.crowdfunding.backend.entity.User;
 import com.crowdfunding.backend.exception.InvalidContributionAmountException;
 import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ReplayAttackException;
@@ -89,4 +91,16 @@ public class ContributionService {
 
         return ContributionResponse.fromEntity(contribution, transaction, project);
     }
+    @Transactional(readOnly = true)
+    public List<ContributionListResponse> contributionHistory(){
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();  
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail)); 
+        List<Contribution> contributions = contributionRepository.findByBackerIdOrderByCreatedAtDesc(user.getId());
+        
+        List<ContributionListResponse> response = contributions.stream().map(ContributionListResponse::fromEntity).toList();
+        return response;
+    }
 }
+
