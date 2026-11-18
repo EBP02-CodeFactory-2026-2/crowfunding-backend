@@ -1,15 +1,12 @@
 package com.crowdfunding.backend.contribution;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.entity.Contribution;
+import com.crowdfunding.backend.entity.Project;
 
-/**
- * ContributionListResponse
- */
 public record ContributionListResponse(
     UUID id,
     String projectName,
@@ -18,14 +15,14 @@ public record ContributionListResponse(
     String status,
     LocalDateTime createdAt
 ) {
-    public static ContributionResponse fromEntity(Contribution contribution, Project project){
-       
+    public static ContributionListResponse fromEntity(Contribution contribution) {
+        Project project = contribution.getProject();
         return new ContributionListResponse(
-            contribution.getId(), 
+            contribution.getId(),
             project.getTitle(),
-            project.getId(), 
-            contribution.getAmount(), 
-            contribution.getStatus().toString(), 
+            project.getId(),
+            contribution.getAmount(),
+            contribution.getStatus().name(),
             contribution.getCreatedAt()
         );
     }

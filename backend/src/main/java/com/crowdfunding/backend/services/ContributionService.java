@@ -5,6 +5,8 @@ import com.crowdfunding.backend.persistence.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.List;
+import java.util.Arrays;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ import com.crowdfunding.backend.exception.InvalidContributionAmountException;
 import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ReplayAttackException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
+import com.crowdfunding.backend.exception.MethodArgumentNotValidException;
 import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.persistence.ProjectRepository;
 
@@ -109,7 +112,7 @@ public class ContributionService {
             try {
                 statusEnum = ContributionStatus.valueOf(status.trim().toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new BadRequestException("Estado inválido: " + status
+                throw new MethodArgumentNotValidException("Estado inválido: " + status
                         + ". Valores permitidos: " + Arrays.toString(ContributionStatus.values()));
             }
 
