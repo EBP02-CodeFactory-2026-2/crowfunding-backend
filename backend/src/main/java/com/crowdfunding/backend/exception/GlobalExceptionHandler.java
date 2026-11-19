@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -33,6 +34,22 @@ public class GlobalExceptionHandler {
                                 details);
 
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+
+        // Manejo de errores HTTP lanzados desde los servicios (incluye 400 Bad Request)
+        @ExceptionHandler(ResponseStatusException.class)
+        public ResponseEntity<ErrorResponse> handleResponseStatusException(
+                        ResponseStatusException ex, HttpServletRequest request) {
+                HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+                if (status == null) {
+                        status = HttpStatus.INTERNAL_SERVER_ERROR;
+                }
+
+                return buildResponse(
+                                status,
+                                status.getReasonPhrase(),
+                                ex.getReason(),
+                                request.getRequestURI());
         }
 
         // Manejo de Recursos Duplicados (Ej: Email ya existe - 409)

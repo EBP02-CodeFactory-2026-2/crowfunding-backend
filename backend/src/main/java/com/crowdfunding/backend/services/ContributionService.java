@@ -8,9 +8,11 @@ import java.util.UUID;
 import java.util.List;
 import java.util.Arrays;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.crowdfunding.backend.contribution.ContributionListResponse;
 import com.crowdfunding.backend.contribution.ContributionRequest;
@@ -26,7 +28,6 @@ import com.crowdfunding.backend.exception.InvalidContributionAmountException;
 import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ReplayAttackException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
-import com.crowdfunding.backend.exception.MethodArgumentNotValidException;
 import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.persistence.ProjectRepository;
 import com.crowdfunding.backend.contribution.ContributionReceipt;
@@ -113,8 +114,11 @@ public class ContributionService {
             try {
                 statusEnum = ContributionStatus.valueOf(status.trim().toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new MethodArgumentNotValidException("Estado inválido: " + status
-                        + ". Valores permitidos: " + Arrays.toString(ContributionStatus.values()));
+                        throw new ResponseStatusException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "Estado inválido: " + status
+                                                        + ". Valores permitidos: "
+                                                        + Arrays.toString(ContributionStatus.values()));
             }
 
             contributions = contributionRepository
