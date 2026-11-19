@@ -5,11 +5,14 @@ import com.crowdfunding.backend.persistence.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.List;
+import java.util.Arrays;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.crowdfunding.backend.contribution.ContributionListResponse;
 import com.crowdfunding.backend.contribution.ContributionRequest;
 import com.crowdfunding.backend.contribution.ContributionResponse;
 import com.crowdfunding.backend.entity.Contribution;
@@ -18,12 +21,15 @@ import com.crowdfunding.backend.entity.Project;
 import com.crowdfunding.backend.entity.ProjectStatus;
 import com.crowdfunding.backend.entity.Transaction;
 import com.crowdfunding.backend.entity.TransactionStatus;
+import com.crowdfunding.backend.entity.User;
 import com.crowdfunding.backend.exception.InvalidContributionAmountException;
 import com.crowdfunding.backend.exception.ProjectAccessDeniedException;
 import com.crowdfunding.backend.exception.ReplayAttackException;
 import com.crowdfunding.backend.exception.ResourceNotFoundException;
+import com.crowdfunding.backend.exception.MethodArgumentNotValidException;
 import com.crowdfunding.backend.persistence.ContributionRepository;
 import com.crowdfunding.backend.persistence.ProjectRepository;
+import com.crowdfunding.backend.contribution.ContributionReceipt;
 
 @Service
 public class ContributionService {
@@ -46,9 +52,10 @@ public class ContributionService {
 
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con el ID: " + projectId));
-                
+
         if (!ProjectStatus.ACTIVE.equals(project.getStatus())) {
-            throw new ProjectAccessDeniedException("El proyecto no se encuentra en estado activo y no puede recibir aportes");
+            throw new ProjectAccessDeniedException(
+                    "El proyecto no se encuentra en estado activo y no puede recibir aportes");
         }
 
         // Validar advertencia de riesgo (HU-2.2.3)
@@ -88,5 +95,59 @@ public class ContributionService {
         project.setCurrentAmount(project.getCurrentAmount().add(request.amount()));
 
         return ContributionResponse.fromEntity(contribution, transaction, project);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContributionListResponse> contributionHistory(String status) {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail));
+
+        List<Contribution> contributions;
+
+        if (status == null || status.isBlank()) {
+            contributions = contributionRepository.findByBackerIdOrderByCreatedAtDesc(user.getId());
+        } else {
+            ContributionStatus statusEnum;
+            try {
+                statusEnum = ContributionStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new MethodArgumentNotValidException("Estado inválido: " + status
+                        + ". Valores permitidos: " + Arrays.toString(ContributionStatus.values()));
+            }
+
+            contributions = contributionRepository
+                    .findByBackerIdAndStatusOrderByCreatedAtDesc(user.getId(), statusEnum);
+        }
+        List<ContributionListResponse> response = contributions.stream().map(ContributionListResponse::fromEntity)
+                .toList();
+        return response;
+    }
+
+    @Transactional(readOnly = true)
+    public ContributionReceipt getReceipt(UUID contributionId) {
+        User user = getAuthenticatedUser();
+
+        // Protección IDOR: si el aporte no es del usuario, responde igual que si no
+        // existiera
+        Contribution contribution = contributionRepository
+                .findByIdAndBackerId(contributionId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Aporte no encontrado con el ID: " + contributionId));
+
+        Transaction transaction = transactionRepository
+                .findByContributionId(contribution.getId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "El aporte " + contributionId + " no tiene una transacción asociada"));
+
+        return ContributionReceipt.fromEntity(contribution, transaction, contribution.getProject());
+    }
+
+    private User getAuthenticatedUser() {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario autenticado no encontrado: " + userEmail));
     }
 }

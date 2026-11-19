@@ -16,8 +16,8 @@ import com.crowdfunding.backend.services.ContributionService;
 
 import jakarta.validation.Valid;
 
-@RestController 
-@RequestMapping("/api/v1/projects")
+@RestController
+@RequestMapping("/api/v1")
 public class ContributionController {
     final ContributionService contributionService;
 
@@ -25,9 +25,22 @@ public class ContributionController {
         this.contributionService = contributionService;
     }
 
-    @PostMapping("/{projectId}/contributions")
-    public ResponseEntity<ContributionResponse> supportProject(@PathVariable UUID projectId, @Valid @RequestBody ContributionRequest request){
+    @PostMapping("/projects/{projectId}/contributions")
+    public ResponseEntity<ContributionResponse> supportProject(@PathVariable UUID projectId,
+            @Valid @RequestBody ContributionRequest request) {
         ContributionResponse response = contributionService.supportProject(projectId, request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/contributions/me")
+    public ResponseEntity<List<ContributionListResponse>> contributionHistory(
+            @RequestParam(required = false) String status) {
+        List<ContributionListResponse> response = contributionService.contributionHistory(status);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/contributions/me/{id}/receipt")
+    public ResponseEntity<ContributionReceipt> getReceipt(@PathVariable UUID id) {
+        return ResponseEntity.ok(contributionService.getReceipt(id));
     }
 }
