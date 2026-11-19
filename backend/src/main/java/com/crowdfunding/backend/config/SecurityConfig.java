@@ -49,12 +49,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // Configurar autorización a endpoints
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints públicos
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/projects/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/projects", "/api/v1/projects/**").permitAll()
-                        // Los demás endpoints requieren autenticación
+                        .requestMatchers("/api/v1/contributions/**").authenticated()
+                        .requestMatchers("/api/v1/notifications/**").authenticated()
                         .anyRequest().authenticated())
                 // Sesión stateless necesaria para JWT
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -80,7 +80,8 @@ public class SecurityConfig {
         configuration.setAllowCredentials(false); // Falso ya que usas "*" en AllowedOrigins
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Aplicamos la regla a absolutamente todos los endpoints (/api/v1/**, Swagger, etc.)
+        // Aplicamos la regla a absolutamente todos los endpoints (/api/v1/**, Swagger,
+        // etc.)
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
