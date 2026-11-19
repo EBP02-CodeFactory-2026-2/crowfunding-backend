@@ -16,14 +16,14 @@ public interface ContributionRepository extends JpaRepository<Contribution, UUID
     int countByProjectIdAndStatus(UUID projectId, ContributionStatus status);
 
     @EntityGraph(attributePaths = "project")
-    List<Contribution> findByBackerIdOrderByCreatedAtDesc(UUID backerId);
+    List<Contribution> findByBackerIdOrderByCreatedAtDesc(Long backerId);
 
     @EntityGraph(attributePaths = "project")
-    List<Contribution> findByBackerIdAndStatusOrderByCreatedAtDesc(UUID backerId, ContributionStatus status);
+    List<Contribution> findByBackerIdAndStatusOrderByCreatedAtDesc(Long backerId, ContributionStatus status);
 
     // Recibo: solo devuelve el aporte si pertenece al usuario autenticado (protección IDOR)
     @EntityGraph(attributePaths = "project")
-    Optional<Contribution> findByIdAndBackerId(UUID id, UUID backerId);
+    Optional<Contribution> findByIdAndBackerId(UUID id, Long backerId);
 
     // HU-4.1.4 CA4: idempotencia de reembolsos
     boolean existsByIdAndStatus(UUID id, ContributionStatus status);
