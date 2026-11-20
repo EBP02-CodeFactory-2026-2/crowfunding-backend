@@ -124,7 +124,7 @@ public class ProjectClosureService {
                 continue;
             }
             contribution.setStatus(ContributionStatus.REFUNDED);
-            contributionRepository.save(contribution);
+            contributionRepository.saveAndFlush(contribution);
             // HECHO: generar notificación de reembolso al backer (HU-4.1.4 CA2)
             notificationService.notifyRefundProcessed(contribution);
         }
