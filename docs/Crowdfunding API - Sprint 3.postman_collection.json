@@ -1,0 +1,5221 @@
+{
+  "info": {
+    "_postman_id": "c7c65b67-55ba-4917-b9bf-ea0c4fbd5f2d",
+    "name": "Crowdfunding API - Sprint 3",
+    "description": "Colección del Sprint 3 generada a partir del codigo real del backend (controllers, DTOs, SecurityConfig y GlobalExceptionHandler).\n\nUso: 1) definir {{baseUrl}}; 2) cargar el esquema y los datos semilla (bloque SPRINT 2 de database/seed-data.sql: usuarios camila@example.com y ana.gomez@example.com, contraseña Password123); 3) ejecutar en orden Auth, Projects, Contributions y Notifications (Runner o manualmente); 4) los flujos de la carpeta 'Cierre automático (job)' requieren esperar al job programado.\n\nComportamientos reales que verifican los tests:\n- Token ausente, inválido o expirado: 403 (Spring Security por defecto), no 401.\n- Register responde 200; Crear proyecto y Aportar responden 201.\n- Aportar a un proyecto que no está ACTIVE responde 403; nonce repetido responde 409.\n- El comprobante de un aporte ajeno responde 404.\n- Fuera de DRAFT, editar exige enviar fundingGoal y deadline (si no, 409).\n- Eliminar es lógico (estado DELETED).\n- El cierre por meta y los reembolsos ocurren solo cuando vence el plazo y corre el job (cada 5 minutos).\n\nNo existen endpoints de usuarios ni de administracion: las carpetas corresponden a los controladores implementados (Auth, Projects, Contributions, Notifications).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "50946404",
+    "_collection_link": "https://go.postman.co/collection/50946404-c7c65b67-55ba-4917-b9bf-ea0c4fbd5f2d?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register - usuario nuevo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"registerEmail\", \"qa.\" + Date.now() + \"@example.com\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta RegisterResponse sin datos sensibles\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"id\", \"fullName\", \"email\", \"createdAt\");",
+                  "    pm.expect(json.email).to.eql(pm.collectionVariables.get(\"registerEmail\"));",
+                  "    pm.expect(json).to.not.have.property(\"password\");",
+                  "    pm.expect(json).to.not.have.property(\"passwordHash\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Usuario de Prueba\",\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"Password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Responde 200 OK (el controlador usa ResponseEntity.ok, no 201). El email se genera en el pre-request para que no se repita."
+          },
+          "response": []
+        },
+        {
+          "name": "Register - email duplicado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Este correo ya está registrado\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Este correo ya está registrado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Duplicado\",\n  \"email\": \"{{email}}\",\n  \"password\": \"Password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register - validación de campos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Error de Validación\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Error de Validación\");",
+                  "});",
+                  "",
+                  "pm.test(\"details incluye los campos: fullName, email, password\", function () {",
+                  "    const fields = pm.response.json().details.map(d => d.field);",
+                  "    pm.expect(fields).to.include.members([\"fullName\", \"email\", \"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"\",\n  \"email\": \"correo-inválido\",\n  \"password\": \"corta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "fullName vacio, email sin formato y password que no cumple: mínimo 8 caracteres, un número y una mayúscula."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - usuario creador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"LoginResponse con token Bearer de 24 h\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(json.tokenType).to.eql(\"Bearer\");",
+                  "    pm.expect(json.expiresIn).to.eql(86400);",
+                  "    pm.expect(json.user).to.have.all.keys(\"id\", \"fullName\", \"email\");",
+                  "    pm.expect(json.user.email).to.eql(pm.collectionVariables.get(\"email\"));",
+                  "    pm.collectionVariables.set(\"token\", json.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Guarda el JWT en {{token}}. Es el usuario por defecto de la colección (autenticación )."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - segundo usuario (patrocinador)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Se guarda el token del segundo usuario\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "    pm.collectionVariables.set(\"tokenBacker\", json.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email2}}\",\n  \"password\": \"{{password2}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Guarda el JWT en {{tokenBacker}}. Se usa para aportes y para las pruebas de acceso a recursos ajenos (IDOR)."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - credenciales inválidas (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(401);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Contraseña o correo inválidos\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Contraseña o correo inválidos\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"inexistente.{{$timestamp}}@example.com\",\n  \"password\": \"Incorrecta1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Se usa un correo distinto en cada ejecución para no acumular intentos fallidos sobre cuentas reales. El mensaje es el mismo si el correo existe y la contraseña es incorrecta."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - validación de campos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Error de Validación\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Error de Validación\");",
+                  "});",
+                  "",
+                  "pm.test(\"details incluye los campos: email, password\", function () {",
+                  "    const fields = pm.response.json().details.map(d => d.field);",
+                  "    pm.expect(fields).to.include.members([\"email\", \"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\",\n  \"password\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login - bloqueo tras 5 intentos fallidos (429)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const lockEmail = \"bloqueo.\" + Date.now() + \"@example.com\";",
+                  "pm.collectionVariables.set(\"lockEmail\", lockEmail);",
+                  "const loginUrl = pm.variables.replaceIn(\"{{baseUrl}}\") + \"/api/v1/auth/login\";",
+                  "for (let i = 0; i < 5; i++) {",
+                  "    pm.sendRequest({",
+                  "        url: loginUrl,",
+                  "        method: \"POST\",",
+                  "        header: { \"Content-Type\": \"application/json\" },",
+                  "        body: { mode: \"raw\", raw: JSON.stringify({ email: lockEmail, password: \"Incorrecta1\" }) }",
+                  "    }, function (err) { if (err) { console.log(err); } });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 429\", function () {",
+                  "    pm.response.to.have.status(429);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(429);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Cuenta bloqueada temporalmente\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Cuenta bloqueada temporalmente\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"Incorrecta1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "El pre-request envia 5 logins fallidos con un correo único (no afecta cuentas reales) y la petición principal es el intento 6, que debe quedar bloqueado 15 minutos."
+          },
+          "response": []
+        }
+      ],
+      "description": "Registro e inicio de sesión. Los endpoints de /api/v1/auth son públicos."
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Listar proyectos activos (público)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta es un arreglo de proyectos ACTIVE\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\");",
+                  "    json.forEach(p => {",
+                  "        pm.expect(p).to.have.all.keys(\"id\", \"title\", \"description\", \"fundingGoal\", \"currentAmount\", \"imageUrl\", \"deadline\", \"status\", \"riskTag\", \"backersCount\");",
+                  "        pm.expect(p.status).to.eql(\"ACTIVE\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por riesgo - ALTO",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta es un arreglo de proyectos ACTIVE\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\");",
+                  "    json.forEach(p => {",
+                  "        pm.expect(p).to.have.all.keys(\"id\", \"title\", \"description\", \"fundingGoal\", \"currentAmount\", \"imageUrl\", \"deadline\", \"status\", \"riskTag\", \"backersCount\");",
+                  "        pm.expect(p.status).to.eql(\"ACTIVE\");",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Todos son Riesgo Alto\", function () {",
+                  "    pm.response.json().forEach(p => pm.expect(p.riskTag).to.eql(\"Riesgo Alto\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects?riskTag=ALTO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ],
+              "query": [
+                {
+                  "key": "riskTag",
+                  "value": "ALTO"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por riesgo - MEDIO,BAJO",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta es un arreglo de proyectos ACTIVE\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\");",
+                  "    json.forEach(p => {",
+                  "        pm.expect(p).to.have.all.keys(\"id\", \"title\", \"description\", \"fundingGoal\", \"currentAmount\", \"imageUrl\", \"deadline\", \"status\", \"riskTag\", \"backersCount\");",
+                  "        pm.expect(p.status).to.eql(\"ACTIVE\");",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Todos son Riesgo Medio o Bajo\", function () {",
+                  "    pm.response.json().forEach(p => pm.expect([\"Riesgo Medio\", \"Riesgo Bajo\"]).to.include(p.riskTag));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects?riskTag=MEDIO,BAJO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ],
+              "query": [
+                {
+                  "key": "riskTag",
+                  "value": "MEDIO,BAJO"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por riesgo - etiqueta completa (Riesgo Alto)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta es un arreglo de proyectos ACTIVE\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\");",
+                  "    json.forEach(p => {",
+                  "        pm.expect(p).to.have.all.keys(\"id\", \"title\", \"description\", \"fundingGoal\", \"currentAmount\", \"imageUrl\", \"deadline\", \"status\", \"riskTag\", \"backersCount\");",
+                  "        pm.expect(p.status).to.eql(\"ACTIVE\");",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Todos son Riesgo Alto\", function () {",
+                  "    pm.response.json().forEach(p => pm.expect(p.riskTag).to.eql(\"Riesgo Alto\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects?riskTag=Riesgo Alto",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ],
+              "query": [
+                {
+                  "key": "riskTag",
+                  "value": "Riesgo Alto"
+                }
+              ]
+            },
+            "description": "El servicio normaliza a mayúsculas y acepta ALTO o RIESGO ALTO."
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por riesgo - valor desconocido (devuelve todos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta es un arreglo de proyectos ACTIVE\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\");",
+                  "    json.forEach(p => {",
+                  "        pm.expect(p).to.have.all.keys(\"id\", \"title\", \"description\", \"fundingGoal\", \"currentAmount\", \"imageUrl\", \"deadline\", \"status\", \"riskTag\", \"backersCount\");",
+                  "        pm.expect(p.status).to.eql(\"ACTIVE\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects?riskTag=XYZ",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ],
+              "query": [
+                {
+                  "key": "riskTag",
+                  "value": "XYZ"
+                }
+              ]
+            },
+            "description": "Si ninguna etiqueta es reconocida se aplica filterAll=true y se listan todos los proyectos ACTIVE."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear borrador (campos de fase activa vacios)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"ProjectResponse en estado DRAFT\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"id\", \"title\", \"description\", \"imageUrl\", \"fundingGoal\", \"currentAmount\", \"deadline\", \"status\", \"riskTag\", \"createdAt\");",
+                  "    pm.expect(json.status).to.eql(\"DRAFT\");",
+                  "    pm.expect(json.riskTag).to.eql(null);",
+                  "    pm.expect(Number(json.currentAmount)).to.eql(0);",
+                  "    pm.expect(json.fundingGoal).to.eql(null);",
+                  "    pm.expect(json.deadline).to.eql(null);",
+                  "});",
+                  "",
+                  "pm.test(\"Se guarda el id en {{projectId}}\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set(\"projectId\", json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Proyecto Postman {{$timestamp}}\",\n  \"description\": \"Proyecto de prueba creado desde la colección de Postman para validar el ciclo de vida completo: borrador, edición, publicacion con cálculo de riesgo, aportes simulados, historial, comprobantes y notificaciones. La descripción supera los 150 caracteres para sumar puntos en el scoring.\",\n  \"imageUrl\": null,\n  \"fundingGoal\": null,\n  \"deadline\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            },
+            "description": "title y description son obligatorios (@NotBlank). fundingGoal, imageUrl y deadline pueden ir en null. Guarda el id en {{projectId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear borrador - validación (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Error de Validación\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Error de Validación\");",
+                  "});",
+                  "",
+                  "pm.test(\"details incluye los campos: title, description\", function () {",
+                  "    const fields = pm.response.json().details.map(d => d.field);",
+                  "    pm.expect(fields).to.include.members([\"title\", \"description\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\",\n  \"description\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear borrador - sin token (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Sin token válido: Spring Security responde 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sin token\",\n  \"description\": \"Sin token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mis proyectos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Incluye el borrador creado con riskTag Sin evaluar\", function () {",
+                  "    const mine = pm.response.json().find(p => p.id === pm.collectionVariables.get(\"projectId\"));",
+                  "    pm.expect(mine).to.not.be.undefined;",
+                  "    pm.expect(mine.status).to.eql(\"DRAFT\");",
+                  "    pm.expect(mine.riskTag).to.eql(\"Sin evaluar\");",
+                  "    pm.expect(mine.backersCount).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "me"
+              ]
+            },
+            "description": "Devuelve todos los proyectos del usuario sin filtrar por estado. El borrador aparece con riskTag \"Sin evalúar\"."
+          },
+          "response": []
+        },
+        {
+          "name": "Mis proyectos - sin token (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Sin token válido: Spring Security responde 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de un borrador (público)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"ProjectDetailResponse\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"id\", \"title\", \"description\", \"fundingGoal\", \"currentAmount\", \"imageUrl\", \"deadline\", \"status\", \"creator\", \"createdAt\", \"riskTag\");",
+                  "    pm.expect(json.id).to.eql(pm.collectionVariables.get(\"projectId\"));",
+                  "    pm.expect(json.creator).to.have.all.keys(\"id\", \"fullName\");",
+                  "    pm.expect(json.status).to.eql(\"DRAFT\");",
+                  "    pm.expect(json.riskTag).to.eql(\"Sin evaluar\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": "El detalle no filtra por estado: un DRAFT es visible sin autenticación."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle - proyecto inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Proyecto no encontrado con el ID\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Proyecto no encontrado con el ID\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Publicar borrador incompleto (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Faltan campos obligatorios para publicar el proyecto\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Faltan campos obligatorios para publicar el proyecto\");",
+                  "});",
+                  "",
+                  "pm.test(\"details incluye los campos: fundingGoal, deadline\", function () {",
+                  "    const fields = pm.response.json().details.map(d => d.field);",
+                  "    pm.expect(fields).to.include.members([\"fundingGoal\", \"deadline\"]);",
+                  "});",
+                  "",
+                  "pm.test(\"Cada detalle indica Campo obligatorio para publicar\", function () {",
+                  "    pm.response.json().details.forEach(d => pm.expect(d.issue).to.eql(\"Campo obligatorio para publicar\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "publish"
+              ]
+            },
+            "description": "El borrador aún no tiene fundingGoal ni deadline: se rechaza y se listan los campos faltantes."
+          },
+          "response": []
+        },
+        {
+          "name": "Editar borrador - como otro usuario (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: No tienes permiso\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"No tienes permiso\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Intento ajeno\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar borrador - completar datos (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"EditProjectResponse en DRAFT\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"id\", \"title\", \"description\", \"imageUrl\", \"fundingGoal\", \"currentAmount\", \"deadline\", \"status\", \"riskTag\", \"updatedAt\");",
+                  "    pm.expect(json.status).to.eql(\"DRAFT\");",
+                  "    pm.expect(json.title).to.eql(\"Proyecto Postman completo\");",
+                  "    pm.expect(Number(json.fundingGoal)).to.eql(1000000);",
+                  "    pm.expect(json.riskTag).to.eql(\"Sin evaluar\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Proyecto Postman completo\",\n  \"description\": \"Proyecto de prueba creado desde la colección de Postman para validar el ciclo de vida completo: borrador, edición, publicacion con cálculo de riesgo, aportes simulados, historial, comprobantes y notificaciones. La descripción supera los 150 caracteres para sumar puntos en el scoring.\",\n  \"imageUrl\": \"https://placehold.co/600x400/png?text=Postman\",\n  \"fundingGoal\": 1000000.0,\n  \"deadline\": \"{{deadline}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": "En DRAFT la edición es parcial (los null no se modifican) y no calcula riesgo: riskTag queda en \"Sin evalúar\"."
+          },
+          "response": []
+        },
+        {
+          "name": "Publicar - como otro usuario (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: No tienes permiso para publicar este proyecto\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"No tienes permiso para publicar este proyecto\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "publish"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Publicar proyecto (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"PublishProjectResponse con puntaje y etiqueta coherentes\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"id\", \"title\", \"status\", \"riskScore\", \"riskTag\", \"fundingGoal\", \"deadline\", \"updatedAt\");",
+                  "    pm.expect(json.status).to.eql(\"ACTIVE\");",
+                  "    pm.expect(json.riskScore).to.be.within(-5, 9);",
+                  "    const expected = json.riskScore <= 1 ? \"Riesgo Alto\" : (json.riskScore <= 5 ? \"Riesgo Medio\" : \"Riesgo Bajo\");",
+                  "    pm.expect(json.riskTag).to.eql(expected);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "publish"
+              ]
+            },
+            "description": "Cambia DRAFT a ACTIVE y calcula el risk_score (rango -5 a 9)."
+          },
+          "response": []
+        },
+        {
+          "name": "Publicar - proyecto ya publicado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: no está en estado borrador\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"no está en estado borrador\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "publish"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Publicar - proyecto inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/00000000-0000-0000-0000-000000000000/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "00000000-0000-0000-0000-000000000000",
+                "publish"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar proyecto ACTIVE - solo titulo (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: La meta y el plazo no pueden modificarse\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"La meta y el plazo no pueden modificarse\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Titulo nuevo sin meta ni plazo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": "Comportamiento real: fuera de DRAFT, si fundingGoal o deadline vienen en null la API responde 409, aunque solo se quiera cambiar el titulo."
+          },
+          "response": []
+        },
+        {
+          "name": "Editar proyecto ACTIVE - con meta y plazo (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Proyecto sigue ACTIVE con riesgo recalculado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(\"ACTIVE\");",
+                  "    pm.expect(json.title).to.eql(\"Proyecto Postman editado en ACTIVE\");",
+                  "    pm.expect([\"Riesgo Alto\", \"Riesgo Medio\", \"Riesgo Bajo\"]).to.include(json.riskTag);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Proyecto Postman editado en ACTIVE\",\n  \"fundingGoal\": 1000000.0,\n  \"deadline\": \"{{deadline}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": "Comportamiento real: enviando fundingGoal y deadline ambos con valor, se aplican y, al cambiar el titulo, se recalcula el risk_score."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de proyecto activo (público)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Proyecto ACTIVE con titulo editado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(\"ACTIVE\");",
+                  "    pm.expect(json.title).to.eql(\"Proyecto Postman editado en ACTIVE\");",
+                  "    pm.expect([\"Riesgo Alto\", \"Riesgo Medio\", \"Riesgo Bajo\"]).to.include(json.riskTag);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear borrador para eliminar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Se guarda el id en {{deleteProjectId}}\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set(\"deleteProjectId\", json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Borrador a eliminar {{$timestamp}}\",\n  \"description\": \"Se elimina para probar la baja lógica.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            },
+            "description": "Guarda el id en {{deleteProjectId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar - como otro usuario (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: No tienes permiso para eliminar este proyecto\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"No tienes permiso para eliminar este proyecto\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{deleteProjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{deleteProjectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar borrador sin aportes (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test(\"Sin cuerpo\", function () {",
+                  "    pm.expect(pm.response.text()).to.eql(\"\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{deleteProjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{deleteProjectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de proyecto eliminado (queda como DELETED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Estado DELETED\", function () {",
+                  "    pm.expect(pm.response.json().status).to.eql(\"DELETED\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{deleteProjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{deleteProjectId}}"
+              ]
+            },
+            "description": "La eliminacion es lógica: el proyecto sigue consultable por id con estado DELETED y no aparece en el listado público."
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar - proyecto inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Ciclo de vida del proyecto: listar/filtrar, crear borrador, editar, publicar, reglas de edición en ACTIVE y eliminacion lógica. Ejecutar en orden."
+    },
+    {
+      "name": "Contributions",
+      "item": [
+        {
+          "name": "Riesgo alto (HU-2.2.3)",
+          "item": [
+            {
+              "name": "Crear proyecto de riesgo alto",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Se guarda el id en {{highRiskProjectId}}\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.id).to.be.a(\"string\");",
+                      "    pm.collectionVariables.set(\"highRiskProjectId\", json.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Proyecto de riesgo alto {{$timestamp}}\",\n  \"description\": \"Descripción corta\",\n  \"fundingGoal\": 100000,\n  \"deadline\": \"{{deadlineShort}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects"
+                  ]
+                },
+                "description": "Descripción corta (-1), sin imagen (-1), meta fuera de rango (-2) y plazo de 3 días (-1): el puntaje siempre queda en 1 o menos. Guarda el id en {{highRiskProjectId}}."
+              },
+              "response": []
+            },
+            {
+              "name": "Publicar proyecto de riesgo alto",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Riesgo Alto\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.riskScore).to.be.at.most(1);",
+                      "    pm.expect(json.riskTag).to.eql(\"Riesgo Alto\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{highRiskProjectId}}/publish",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{highRiskProjectId}}",
+                    "publish"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Aportar sin confirmar la advertencia (400)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 400\", function () {",
+                      "    pm.response.to.have.status(400);",
+                      "});",
+                      "",
+                      "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                      "    pm.expect(json.status).to.eql(400);",
+                      "});",
+                      "",
+                      "pm.test(\"El mensaje contiene: Debes confirmar la advertencia de riesgo antes de aportar\", function () {",
+                      "    pm.expect(pm.response.json().message).to.include(\"Debes confirmar la advertencia de riesgo antes de aportar\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{highRiskProjectId}}/contributions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{highRiskProjectId}}",
+                    "contributions"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Aportar con riskWarningAccepted=false (400)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 400\", function () {",
+                      "    pm.response.to.have.status(400);",
+                      "});",
+                      "",
+                      "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                      "    pm.expect(json.status).to.eql(400);",
+                      "});",
+                      "",
+                      "pm.test(\"El mensaje contiene: Debes confirmar la advertencia de riesgo antes de aportar\", function () {",
+                      "    pm.expect(pm.response.json().message).to.include(\"Debes confirmar la advertencia de riesgo antes de aportar\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\",\n  \"riskWarningAccepted\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{highRiskProjectId}}/contributions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{highRiskProjectId}}",
+                    "contributions"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Aportar confirmando la advertencia (201)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Aporte registrado\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.status).to.eql(\"COMPLETED\");",
+                      "    pm.expect(Number(json.projectNewAmount)).to.eql(10000);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\",\n  \"riskWarningAccepted\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{highRiskProjectId}}/contributions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{highRiskProjectId}}",
+                    "contributions"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "Un proyecto con etiqueta Riesgo Alto (puntaje <= 1) exige riskWarningAccepted=true."
+        },
+        {
+          "name": "Aportar al proyecto (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"ContributionResponse completo\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"contributionId\", \"projectId\", \"amount\", \"status\", \"transaction\", \"projectNewAmount\", \"createdAt\");",
+                  "    pm.expect(json.projectId).to.eql(pm.collectionVariables.get(\"projectId\"));",
+                  "    pm.expect(json.status).to.eql(\"COMPLETED\");",
+                  "    pm.expect(Number(json.amount)).to.eql(50000);",
+                  "    pm.expect(Number(json.projectNewAmount)).to.eql(50000);",
+                  "    pm.expect(json.transaction.referenceCode).to.match(/^MOCK-/);",
+                  "    pm.expect(json.transaction.paymentMethod).to.eql(\"SIMULATED_CARD\");",
+                  "    pm.collectionVariables.set(\"contributionId\", json.contributionId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\",\n  \"riskWarningAccepted\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "contributions"
+              ]
+            },
+            "description": "Aporte del patrocinador al proyecto activo {{projectId}}. Genera un nonce único en el pre-request y guarda el id del aporte en {{contributionId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Aportar - nonce reutilizado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: nonce\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"nonce\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\",\n  \"riskWarningAccepted\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "contributions"
+              ]
+            },
+            "description": "Reusa el nonce de la petición anterior: ReplayAttackException responde 409 (el 422 solo aparece si la restricción UNIQUE de la base de datos rechaza el nonce por concurrencia)."
+          },
+          "response": []
+        },
+        {
+          "name": "Aportar - monto menor al mínimo (400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Error de Validación\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Error de Validación\");",
+                  "});",
+                  "",
+                  "pm.test(\"details incluye los campos: amount\", function () {",
+                  "    const fields = pm.response.json().details.map(d => d.field);",
+                  "    pm.expect(fields).to.include.members([\"amount\"]);",
+                  "});",
+                  "",
+                  "pm.test(\"Mensaje del monto mínimo\", function () {",
+                  "    const d = pm.response.json().details.find(x => x.field === \"amount\");",
+                  "    pm.expect(d.issue).to.eql(\"El monto mínimo para aportar es $10.000\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 9999.99,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "contributions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Aportar - body vacio (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(400);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Error de Validación\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Error de Validación\");",
+                  "});",
+                  "",
+                  "pm.test(\"details incluye los campos: amount, paymentMethod, nonce\", function () {",
+                  "    const fields = pm.response.json().details.map(d => d.field);",
+                  "    pm.expect(fields).to.include.members([\"amount\", \"paymentMethod\", \"nonce\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "contributions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Aportar - sin token (403)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Sin token válido: Spring Security responde 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "contributions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Aportar - proyecto inexistente (404)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Proyecto no encontrado con el ID\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Proyecto no encontrado con el ID\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/00000000-0000-0000-0000-000000000000/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "00000000-0000-0000-0000-000000000000",
+                "contributions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Preparar borrador para pruebas de estado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Se guarda el id en {{incompleteProjectId}}\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set(\"incompleteProjectId\", json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Borrador sin publicar {{$timestamp}}\",\n  \"description\": \"Borrador que no recibe aportes.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            },
+            "description": "Guarda el id en {{incompleteProjectId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Aportar - proyecto en borrador (403)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: no se encuentra en estado activo\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"no se encuentra en estado activo\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{incompleteProjectId}}/contributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{incompleteProjectId}}",
+                "contributions"
+              ]
+            },
+            "description": "Cualquier estado distinto de ACTIVE (DRAFT, FUNDED, FAILED, DELETED) responde 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Mis aportes (patrocinador)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Arreglo de aportes, del más reciente al más antiguo\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\").and.not.empty;",
+                  "    json.forEach(c => pm.expect(c).to.have.all.keys(\"id\", \"projectName\", \"projectId\", \"amount\", \"status\", \"createdAt\"));",
+                  "    for (let i = 1; i < json.length; i++) {",
+                  "        pm.expect(new Date(json[i - 1].createdAt).getTime()).to.be.at.least(new Date(json[i].createdAt).getTime());",
+                  "    }",
+                  "    pm.expect(json.map(c => c.id)).to.include(pm.collectionVariables.get(\"contributionId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mis aportes - filtro status=COMPLETED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Todos COMPLETED\", function () {",
+                  "    pm.response.json().forEach(c => pm.expect(c.status).to.eql(\"COMPLETED\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me?status=COMPLETED",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "COMPLETED"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mis aportes - filtro status=refunded (sin distinguir mayúsculas)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Todos REFUNDED (puede ser un arreglo vacio)\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\");",
+                  "    json.forEach(c => pm.expect(c.status).to.eql(\"REFUNDED\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me?status=refunded",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "refunded"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mis aportes - status inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {\n    pm.response.to.have.status(400);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me?status=INVALIDO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "INVALIDO"
+                }
+              ]
+            },
+            "description": "El servicio lanza una excepción con el mensaje \"Estado inválido: ... Valores permitidos: \\[...\\]\". Ver la nota sobre MethodArgumentNotValidException en el README/Crowdfunding.md si no responde 400."
+          },
+          "response": []
+        },
+        {
+          "name": "Mis aportes - sin token (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Sin token válido: Spring Security responde 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Comprobante del aporte (titular)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"ContributionReceipt con medio de pago enmascarado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"receiptId\", \"contributionId\", \"projectName\", \"amount\", \"status\", \"transactionDetails\", \"generatedAt\");",
+                  "    pm.expect(json.contributionId).to.eql(pm.collectionVariables.get(\"contributionId\"));",
+                  "    pm.expect(json.receiptId).to.eql(\"RCP-\" + json.transactionDetails.referenceCode);",
+                  "    pm.expect(json.transactionDetails.paymentMethod).to.match(/^SIMULATED_CARD \\*\\*\\* \\d{4}$/);",
+                  "    pm.expect(Number(json.amount)).to.eql(50000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me/{{contributionId}}/receipt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me",
+                "{{contributionId}}",
+                "receipt"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Comprobante - aporte de otro usuario (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Aporte no encontrado con el ID\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Aporte no encontrado con el ID\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me/{{contributionId}}/receipt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me",
+                "{{contributionId}}",
+                "receipt"
+              ]
+            },
+            "description": "Se consulta con el usuario creador (no es el titular). Prevención de IDOR: responde igual que si el aporte no existiera."
+          },
+          "response": []
+        },
+        {
+          "name": "Comprobante - aporte inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: Aporte no encontrado con el ID\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"Aporte no encontrado con el ID\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me/00000000-0000-0000-0000-000000000000/receipt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me",
+                "00000000-0000-0000-0000-000000000000",
+                "receipt"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Comprobante - sin token (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Sin token válido: Spring Security responde 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/contributions/me/{{contributionId}}/receipt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "contributions",
+                "me",
+                "{{contributionId}}",
+                "receipt"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar proyecto con aportes (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: No se puede eliminar un proyecto con contribuciones\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"No se puede eliminar un proyecto con contribuciones\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            },
+            "description": "El proyecto ya tiene un aporte COMPLETED: no se puede eliminar."
+          },
+          "response": []
+        }
+      ],
+      "description": "Aportes simulados: validaciones, anti-replay con nonce, advertencia de riesgo alto, historial con filtro y comprobante. Requiere haber ejecutado antes Auth y Projects."
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Mis notificaciones (creador)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Arreglo de notificaciones del usuario\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\");",
+                  "    json.forEach(n => {",
+                  "        pm.expect(n).to.have.all.keys(\"id\", \"type\", \"message\", \"isRead\", \"createdAt\");",
+                  "        pm.expect([\"PROJECT_FUNDED\", \"PROJECT_FAILED\", \"REFUND_PROCESSED\"]).to.include(n.type);",
+                  "    });",
+                  "});",
+                  "",
+                  "const list = pm.response.json();",
+                  "pm.collectionVariables.set(\"hasNotification\", list.length > 0 ? \"true\" : \"false\");",
+                  "pm.collectionVariables.set(\"notificationId\", list.length > 0 ? list[0].id : \"\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "me"
+              ]
+            },
+            "description": "Guarda en {{notificationId}} la notificación más reciente del creador (si existe). Las notificaciones las genera el job de cierre, por lo que el arreglo puede estar vacio."
+          },
+          "response": []
+        },
+        {
+          "name": "Mis notificaciones (patrocinador)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Arreglo de notificaciones del usuario\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an(\"array\");",
+                  "    json.forEach(n => {",
+                  "        pm.expect(n).to.have.all.keys(\"id\", \"type\", \"message\", \"isRead\", \"createdAt\");",
+                  "        pm.expect([\"PROJECT_FUNDED\", \"PROJECT_FAILED\", \"REFUND_PROCESSED\"]).to.include(n.type);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mis notificaciones - sin token (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Sin token válido: Spring Security responde 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Marcar como leida - notificación de otro usuario (403)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"notificationId\")) {",
+                  "    pm.collectionVariables.set(\"notificationId\", \"00000000-0000-0000-0000-000000000000\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const hasNotification = pm.collectionVariables.get(\"hasNotification\") === \"true\";",
+                  "pm.test(hasNotification ? \"Status code is 403 (notificación ajena)\" : \"Status code is 404 (no hay notificaciones)\", function () {",
+                  "    pm.response.to.have.status(hasNotification ? 403 : 404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenBacker}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "description": "Con la notificación del creador y el token del patrocinador responde 403. Si el creador no tiene notificaciones se usa un UUID inexistente y la respuesta esperada es 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Marcar como leida - titular (204)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"notificationId\")) {",
+                  "    pm.collectionVariables.set(\"notificationId\", \"00000000-0000-0000-0000-000000000000\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const hasNotification = pm.collectionVariables.get(\"hasNotification\") === \"true\";",
+                  "pm.test(hasNotification ? \"Status code is 204\" : \"Status code is 404 (no hay notificaciones)\", function () {",
+                  "    pm.response.to.have.status(hasNotification ? 204 : 404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Marcar como leida - idempotente (204)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"notificationId\")) {",
+                  "    pm.collectionVariables.set(\"notificationId\", \"00000000-0000-0000-0000-000000000000\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const hasNotification = pm.collectionVariables.get(\"hasNotification\") === \"true\";",
+                  "pm.test(hasNotification ? \"Status code is 204\" : \"Status code is 404 (no hay notificaciones)\", function () {",
+                  "    pm.response.to.have.status(hasNotification ? 204 : 404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "description": "Marcar una notificación ya leida también responde 204."
+          },
+          "response": []
+        },
+        {
+          "name": "Marcar como leida - notificación inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "});",
+                  "",
+                  "pm.test(\"El mensaje contiene: La notificación no fue encontrada\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include(\"La notificación no fue encontrada\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/00000000-0000-0000-0000-000000000000/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "00000000-0000-0000-0000-000000000000",
+                "read"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Marcar como leida - sin token (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Sin token válido: Spring Security responde 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/00000000-0000-0000-0000-000000000000/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "00000000-0000-0000-0000-000000000000",
+                "read"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Alertas generadas por el cierre automático (PROJECT_FUNDED, PROJECT_FAILED, REFUND_PROCESSED)."
+    },
+    {
+      "name": "Cierre automático (job)",
+      "item": [
+        {
+          "name": "A - Cierre por meta (FUNDED)",
+          "item": [
+            {
+              "name": "A1 - Crear proyecto con plazo en 2 minutos",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Se guarda el id en {{quickFundedProjectId}}\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.id).to.be.a(\"string\");",
+                      "    pm.collectionVariables.set(\"quickFundedProjectId\", json.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Cierre por meta\",\n  \"description\": \"Proyecto de prueba creado desde la colección de Postman para validar el ciclo de vida completo: borrador, edición, publicacion con cálculo de riesgo, aportes simulados, historial, comprobantes y notificaciones. La descripción supera los 150 caracteres para sumar puntos en el scoring.\",\n  \"imageUrl\": \"https://placehold.co/600x400/png?text=Postman\",\n  \"fundingGoal\": 10000,\n  \"deadline\": \"{{deadlineSoon}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects"
+                  ]
+                },
+                "description": "Meta de 10.000 y plazo en 2 minutos (hora local del servidor, ver {{serverTzOffsetMinutes}}). Guarda el id en {{quickFundedProjectId}}."
+              },
+              "response": []
+            },
+            {
+              "name": "A2 - Publicar",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{quickFundedProjectId}}/publish",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{quickFundedProjectId}}",
+                    "publish"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "A3 - Aportar el monto de la meta (patrocinador)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Meta alcanzada\", function () {",
+                      "    pm.expect(Number(pm.response.json().projectNewAmount)).to.eql(10000);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\",\n  \"riskWarningAccepted\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{quickFundedProjectId}}/contributions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{quickFundedProjectId}}",
+                    "contributions"
+                  ]
+                },
+                "description": "riskWarningAccepted=true por si el scoring deja el proyecto en Riesgo Alto."
+              },
+              "response": []
+            },
+            {
+              "name": "A4 - Tras alcanzar la meta el proyecto sigue ACTIVE",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Sigue ACTIVE (o ya cerrado por el job si paso el plazo)\", function () {",
+                      "    pm.expect([\"ACTIVE\", \"FUNDED\"]).to.include(pm.response.json().status);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{quickFundedProjectId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{quickFundedProjectId}}"
+                  ]
+                },
+                "description": "Comportamiento real: la meta solo se evalúa cuando vence el plazo y corre el job, no al recibir el aporte. Ejecutar de inmediato después de A3."
+              },
+              "response": []
+            },
+            {
+              "name": "A5 - (esperar ~7 min) Proyecto cerrado como FUNDED",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"El proyecto pasa a FUNDED\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.id).to.eql(pm.collectionVariables.get(\"quickFundedProjectId\"));",
+                      "    if (json.status === \"ACTIVE\") { console.warn(\"El job aún no cerro el proyecto: esperar al siguiente ciclo (cada 5 min) y repetir.\"); }",
+                      "    pm.expect(json.status).to.eql(\"FUNDED\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{quickFundedProjectId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{quickFundedProjectId}}"
+                  ]
+                },
+                "description": "Ejecutar manualmente unos 7 minutos después de A2: el plazo (2 min) debe vencer y el job (cada 5 min) debe correr."
+              },
+              "response": []
+            },
+            {
+              "name": "A6 - Aporte a proyecto FUNDED (403)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 403\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});",
+                      "",
+                      "pm.test(\"Cuerpo con formato de error unificado\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json).to.have.all.keys(\"timestamp\", \"status\", \"error\", \"message\", \"path\", \"details\");",
+                      "    pm.expect(json.status).to.eql(403);",
+                      "});",
+                      "",
+                      "pm.test(\"El mensaje contiene: no se encuentra en estado activo\", function () {",
+                      "    pm.expect(pm.response.json().message).to.include(\"no se encuentra en estado activo\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{quickFundedProjectId}}/contributions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{quickFundedProjectId}}",
+                    "contributions"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "A7 - Notificación PROJECT_FUNDED del creador",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"El creador recibió PROJECT_FUNDED\", function () {",
+                      "    const json = pm.response.json();",
+                      "    const n = json.find(x => x.type === \"PROJECT_FUNDED\" && x.message.includes(\"Cierre por meta\"));",
+                      "    pm.expect(n, \"notificación PROJECT_FUNDED\").to.not.be.undefined;",
+                      "    pm.expect(n.isRead).to.eql(false);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "notifications",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "A8 - Notificación PROJECT_FUNDED del patrocinador",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"El patrocinador recibió PROJECT_FUNDED\", function () {",
+                      "    const json = pm.response.json();",
+                      "    const n = json.find(x => x.type === \"PROJECT_FUNDED\" && x.message.includes(\"Cierre por meta\"));",
+                      "    pm.expect(n, \"notificación PROJECT_FUNDED\").to.not.be.undefined;",
+                      "    pm.expect(n.isRead).to.eql(false);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "notifications",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "Ejecutar A1 a A4 seguidos y A5 a A8 manualmente ~7 minutos después."
+        },
+        {
+          "name": "B - Cierre por plazo vencido (FAILED + reembolso)",
+          "item": [
+            {
+              "name": "B1 - Crear proyecto con plazo en 2 minutos",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Se guarda el id en {{quickFailedProjectId}}\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.id).to.be.a(\"string\");",
+                      "    pm.collectionVariables.set(\"quickFailedProjectId\", json.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Cierre por plazo\",\n  \"description\": \"Proyecto de prueba creado desde la colección de Postman para validar el ciclo de vida completo: borrador, edición, publicacion con cálculo de riesgo, aportes simulados, historial, comprobantes y notificaciones. La descripción supera los 150 caracteres para sumar puntos en el scoring.\",\n  \"imageUrl\": \"https://placehold.co/600x400/png?text=Postman\",\n  \"fundingGoal\": 1000000,\n  \"deadline\": \"{{deadlineSoon}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects"
+                  ]
+                },
+                "description": "Guarda el id en {{quickFailedProjectId}}."
+              },
+              "response": []
+            },
+            {
+              "name": "B2 - Publicar",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{quickFailedProjectId}}/publish",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{quickFailedProjectId}}",
+                    "publish"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "B3 - Aportar sin alcanzar la meta (patrocinador)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"nonce\", \"nonce-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Se guarda el aporte en {{quickFailedContributionId}}\", function () {",
+                      "    pm.collectionVariables.set(\"quickFailedContributionId\", pm.response.json().contributionId);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 10000.0,\n  \"paymentMethod\": \"SIMULATED_CARD\",\n  \"nonce\": \"{{nonce}}\",\n  \"riskWarningAccepted\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{quickFailedProjectId}}/contributions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{quickFailedProjectId}}",
+                    "contributions"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "B4 - (esperar ~7 min) Proyecto cerrado como FAILED",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"El proyecto pasa a FAILED\", function () {",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.id).to.eql(pm.collectionVariables.get(\"quickFailedProjectId\"));",
+                      "    if (json.status === \"ACTIVE\") { console.warn(\"El job aún no cerro el proyecto: esperar al siguiente ciclo (cada 5 min) y repetir.\"); }",
+                      "    pm.expect(json.status).to.eql(\"FAILED\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/projects/{{quickFailedProjectId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "projects",
+                    "{{quickFailedProjectId}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "B5 - El aporte queda REFUNDED en el historial",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"El aporte del proyecto fallido está REFUNDED\", function () {",
+                      "    const ids = pm.response.json().map(c => c.id);",
+                      "    pm.expect(ids).to.include(pm.collectionVariables.get(\"quickFailedContributionId\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/contributions/me?status=REFUNDED",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "contributions",
+                    "me"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "REFUNDED"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "B6 - Comprobante del aporte reembolsado",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Estado REFUNDED\", function () {",
+                      "    pm.expect(pm.response.json().status).to.eql(\"REFUNDED\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/contributions/me/{{quickFailedContributionId}}/receipt",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "contributions",
+                    "me",
+                    "{{quickFailedContributionId}}",
+                    "receipt"
+                  ]
+                },
+                "description": "El comprobante se genera para aportes en cualquier estado."
+              },
+              "response": []
+            },
+            {
+              "name": "B7 - Notificaciones del patrocinador (REFUND_PROCESSED y PROJECT_FAILED)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Recibe REFUND_PROCESSED y PROJECT_FAILED\", function () {\n    const json = pm.response.json();\n    const refund = json.find(n => n.type === \"REFUND_PROCESSED\");\n    const failed = json.find(n => n.type === \"PROJECT_FAILED\");\n\n    pm.expect(refund, \"REFUND_PROCESSED\").to.not.be.undefined;\n    pm.expect(failed, \"PROJECT_FAILED\").to.not.be.undefined;\n});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenBacker}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "notifications",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "B8 - Notificación PROJECT_FAILED del creador",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"El creador recibió PROJECT_FAILED\", function () {\n    const json = pm.response.json();\n    const n = json.find(x => x.type === \"PROJECT_FAILED\");\n\n    pm.expect(n, \"notificación PROJECT_FAILED\").to.not.be.undefined;\n    pm.expect(n.isRead).to.eql(false);\n});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "notifications",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "Ejecutar B1 a B3 seguidos y B4 a B8 manualmente ~7 minutos después."
+        }
+      ],
+      "description": "No hay endpoint para forzar el cierre: lo ejecuta ProjectClosureService.scheduledProjectClosure() cada 5 minutos sobre los proyectos ACTIVE con deadline vencido. Estas carpetas crean proyectos con plazo de 2 minutos; los pasos marcados con (esperar ~7 min) deben ejecutarse a mano después de ese tiempo (no ejecutar la carpeta completa de corrido en el Runner)."
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "OpenAPI - /v3/api-docs (público)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Documento OpenAPI con esquema bearerAuth\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"openapi\");",
+                  "    pm.expect(json.components.securitySchemes).to.have.property(\"bearerAuth\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Swagger UI - /swagger-ui.html (público)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/swagger-ui.html",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "swagger-ui.html"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actuator - /actuator/health (requiere token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"status UP\", function () {",
+                  "    pm.expect(pm.response.json().status).to.eql(\"UP\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Actuator está incluido pero cae bajo anyRequest().authenticated(): sin token responde 403."
+          },
+          "response": []
+        }
+      ],
+      "description": "Documentación y salud de la aplicacion."
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Las fechas son LocalDateTime sin zona: se calculan en la hora local del servidor.",
+          "const offset = parseInt(pm.collectionVariables.get(\"serverTzOffsetMinutes\") || \"0\", 10);",
+          "const at = (ms) => new Date(Date.now() + ms + offset * 60000).toISOString().slice(0, 19);",
+          "pm.collectionVariables.set(\"deadline\", at(30 * 24 * 3600 * 1000));",
+          "pm.collectionVariables.set(\"deadlineShort\", at(3 * 24 * 3600 * 1000));",
+          "pm.collectionVariables.set(\"deadlineSoon\", at(2 * 60 * 1000));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "description": "URL base del backend (sin /api/v1). Ej: https://mi-servicio.onrender.com"
+    },
+    {
+      "key": "serverTzOffsetMinutes",
+      "value": "0",
+      "description": "Desfase en minutos de la hora local del servidor respecto a UTC. 0 en Docker/Render (UTC); -300 si el JVM corre en hora de Colombia. Se usa para calcular los deadline."
+    },
+    {
+      "key": "email",
+      "value": "camila@example.com",
+      "description": "Usuario creador (datos semilla)."
+    },
+    {
+      "key": "password",
+      "value": "Password123",
+      "description": "Contraseña del usuario creador (datos semilla)."
+    },
+    {
+      "key": "email2",
+      "value": "ana.gomez@example.com",
+      "description": "Segundo usuario / patrocinador (datos semilla)."
+    },
+    {
+      "key": "password2",
+      "value": "Password123",
+      "description": "Contraseña del segundo usuario (datos semilla)."
+    },
+    {
+      "key": "token",
+      "value": "",
+      "description": "JWT del usuario creador (lo llena Auth > Login - usuario creador)."
+    },
+    {
+      "key": "tokenBacker",
+      "value": "",
+      "description": "JWT del patrocinador (lo llena Auth > Login - segundo usuario)."
+    },
+    {
+      "key": "projectId",
+      "value": "",
+      "description": "Proyecto del ciclo de vida (lo llena Projects > Crear borrador)."
+    },
+    {
+      "key": "deleteProjectId",
+      "value": "",
+      "description": "Borrador que se elimina en Projects."
+    },
+    {
+      "key": "incompleteProjectId",
+      "value": "",
+      "description": "Borrador sin publicar usado en Contributions."
+    },
+    {
+      "key": "highRiskProjectId",
+      "value": "",
+      "description": "Proyecto de Riesgo Alto usado en Contributions."
+    },
+    {
+      "key": "contributionId",
+      "value": "",
+      "description": "Aporte creado en Contributions."
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "description": "Notificación del creador usada en Notifications."
+    },
+    {
+      "key": "hasNotification",
+      "value": "false",
+      "description": "Indica si el creador tenia notificaciones al listarlas."
+    },
+    {
+      "key": "quickFundedProjectId",
+      "value": "",
+      "description": "Proyecto del flujo de cierre por meta."
+    },
+    {
+      "key": "quickFailedProjectId",
+      "value": "",
+      "description": "Proyecto del flujo de cierre por plazo."
+    },
+    {
+      "key": "quickFailedContributionId",
+      "value": "",
+      "description": "Aporte del flujo de cierre por plazo."
+    },
+    {
+      "key": "nonce",
+      "value": "",
+      "description": "Token de un solo uso generado por el pre-request de cada aporte."
+    },
+    {
+      "key": "registerEmail",
+      "value": "",
+      "description": "Correo único generado para Register."
+    },
+    {
+      "key": "lockEmail",
+      "value": "",
+      "description": "Correo único generado para la prueba de bloqueo."
+    },
+    {
+      "key": "deadline",
+      "value": "",
+      "description": "Fecha limite (ahora + 30 días) calculada por el pre-request de la colección."
+    },
+    {
+      "key": "deadlineShort",
+      "value": "",
+      "description": "Fecha limite (ahora + 3 días) calculada por el pre-request de la colección."
+    },
+    {
+      "key": "deadlineSoon",
+      "value": "",
+      "description": "Fecha limite (ahora + 2 minutos) calculada por el pre-request de la colección."
+    }
+  ]
+}
