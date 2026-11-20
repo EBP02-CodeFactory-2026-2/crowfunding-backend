@@ -97,7 +97,7 @@ public class NotificationService {
                 NumberFormat.getNumberInstance(Locale.US).format(project.getFundingGoal()),
                 backerCount,
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(closedAt)));
-        notificationRepository.save(notification);
+        notificationRepository.saveAndFlush(notification);
 
     }
 
@@ -125,7 +125,7 @@ public class NotificationService {
         notification.setProject(project);
         notification.setType(PROJECT_FAILED);
         notification.setMessage(String.format(
-                "El proyecto %s caducó. Recaudó $%s de una meta de $%s (%s%% alcanzado). "
+                "Cierre por plazo vencido: el proyecto %s caducó. Recaudó $%s de una meta de $%s (%s%% alcanzado). "
                         + "Patrocinadores: %d. Fecha de cierre: %s. "
                         + "Los aportes serán reembolsados y los patrocinadores pueden consultar su estado "
                         + "en el historial de aportes.",
@@ -137,7 +137,7 @@ public class NotificationService {
                         .stripTrailingZeros().toPlainString(),
                 backerCount,
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(closedAt)));
-        notificationRepository.save(notification);
+        notificationRepository.saveAndFlush(notification);
     }
 
     public void notifyRefundProcessed(Contribution contribution) {
@@ -151,15 +151,20 @@ public class NotificationService {
             throw new IllegalArgumentException("El aporte debe incluir un usuario, un proyecto y un monto válidos.");
         }
 
+        if (notificationRepository.existsByUserIdAndTypeAndProjectId(
+                contribution.getBacker().getId(), REFUND_PROCESSED, contribution.getProject().getId())) {
+            return;
+        }
+
         Notification notification = new Notification();
         notification.setUser(contribution.getBacker());
         notification.setProject(contribution.getProject());
         notification.setType(REFUND_PROCESSED);
         notification.setMessage(String.format(
-                "Tu aporte de $%s al proyecto %s ha sido reembolsado",
+                "Cierre por plazo vencido: tu aporte de $%s al proyecto %s ha sido reembolsado",
                 NumberFormat.getNumberInstance(Locale.US).format(contribution.getAmount()),
                 contribution.getProject().getTitle()));
-        notificationRepository.save(notification);
+        notificationRepository.saveAndFlush(notification);
     }
 
 }
