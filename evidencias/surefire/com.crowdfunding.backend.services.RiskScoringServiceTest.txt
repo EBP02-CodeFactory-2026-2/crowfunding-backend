@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.crowdfunding.backend.services.RiskScoringServiceTest
+-------------------------------------------------------------------------------
+Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.228 s -- in com.crowdfunding.backend.services.RiskScoringServiceTest
