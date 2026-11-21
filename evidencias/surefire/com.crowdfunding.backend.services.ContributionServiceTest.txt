@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.crowdfunding.backend.services.ContributionServiceTest
+-------------------------------------------------------------------------------
+Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.330 s -- in com.crowdfunding.backend.services.ContributionServiceTest
